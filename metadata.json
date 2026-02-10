@@ -1,0 +1,7 @@
+{
+  "name": "LuminaTranscribe AI",
+  "description": "A high-performance transcription and meeting intelligence app inspired by Otter.ai, featuring real-time AI transcription, automated summaries, and smart chat insights powered by Gemini.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

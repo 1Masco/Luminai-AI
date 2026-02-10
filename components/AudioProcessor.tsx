@@ -1,0 +1,173 @@
+
+import React, { useState, useEffect } from 'react';
+import { GoogleGenAI, Type } from '@google/genai';
+import { Meeting } from '../types';
+
+interface AudioProcessorProps {
+  fileOrUrl: File | { name: string, url: string };
+  onFinish: (meeting: Meeting) => void;
+  onCancel: () => void;
+}
+
+const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, onCancel }) => {
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("Preparing file...");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    processAudio();
+  }, [fileOrUrl]);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const processAudio = async () => {
+    try {
+      setProgress(10);
+      let base64Data = "";
+      let mimeType = "audio/mpeg";
+      let fileName = "Cloud Recording";
+
+      if (fileOrUrl instanceof File) {
+        setStatus("Reading local data...");
+        base64Data = await fileToBase64(fileOrUrl);
+        mimeType = fileOrUrl.type || "audio/mpeg";
+        fileName = fileOrUrl.name;
+      } else {
+        setStatus(`Fetching from ${fileOrUrl.url.includes('drive') ? 'Google Drive' : 'Dropbox'}...`);
+        // Simulate a fetch
+        await new Promise(r => setTimeout(r, 1500));
+        fileName = fileOrUrl.name;
+        // Mock data for cloud files
+        base64Data = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="; 
+      }
+      
+      setProgress(40);
+      setStatus("Analyzing with Gemini AI...");
+      
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              },
+            },
+            {
+              text: `Please transcribe this audio file. This is: ${fileName}. 
+              Return a JSON object with: 
+              - title (string)
+              - transcript (array of {speaker: string, text: string, timestamp: number})
+              - summary (string)
+              - actionItems (array of strings)
+              - sentiment (enum: positive, neutral, negative)
+              - durationSeconds (number)`,
+            },
+          ],
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              transcript: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    speaker: { type: Type.STRING },
+                    text: { type: Type.STRING },
+                    timestamp: { type: Type.NUMBER }
+                  }
+                }
+              },
+              summary: { type: Type.STRING },
+              actionItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+              sentiment: { type: Type.STRING },
+              durationSeconds: { type: Type.NUMBER }
+            }
+          }
+        }
+      });
+
+      setProgress(90);
+      setStatus("Finalizing meeting report...");
+      
+      const result = JSON.parse(response.text || "{}");
+      
+      const newMeeting: Meeting = {
+        id: Date.now().toString(),
+        title: result.title || fileName.replace(/\.[^/.]+$/, ""),
+        date: new Date().toISOString(),
+        duration: result.durationSeconds || 60,
+        transcript: (result.transcript || []).map((p: any, idx: number) => ({
+          id: `t-${idx}`,
+          speaker: p.speaker || "Speaker",
+          text: p.text || "",
+          timestamp: p.timestamp || 0
+        })),
+        summary: result.summary || "No summary available.",
+        actionItems: result.actionItems || [],
+        sentiment: result.sentiment || 'neutral'
+      };
+
+      setProgress(100);
+      setTimeout(() => onFinish(newMeeting), 500);
+
+    } catch (err: any) {
+      console.error("Processing Error:", err);
+      setError(err.message || "An unexpected error occurred during transcription.");
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-8 bg-white">
+      <div className="max-w-md w-full text-center">
+        {!error ? (
+          <>
+            <div className="mb-8 relative">
+              <div className="w-24 h-24 bg-purple-100 text-purple-600 rounded-3xl flex items-center justify-center mx-auto text-4xl animate-pulse shadow-inner">
+                <i className="fas fa-file-waveform"></i>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Lumina is Processing</h2>
+            <p className="text-gray-500 mb-8 truncate px-4">{fileOrUrl instanceof File ? fileOrUrl.name : fileOrUrl.name}</p>
+
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mb-4 max-w-sm mx-auto">
+              <div className="bg-purple-600 h-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
+            </div>
+
+            <p className="text-sm font-medium text-purple-600 animate-pulse">{status}</p>
+          </>
+        ) : (
+          <div className="bg-red-50 p-8 rounded-3xl border border-red-100">
+            <i className="fas fa-circle-exclamation text-red-600 text-3xl mb-4"></i>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Processing Failed</h3>
+            <p className="text-red-600 mb-6 text-sm">{error}</p>
+            <div className="flex gap-3">
+              <button onClick={onCancel} className="flex-1 px-6 py-2 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50">Go Back</button>
+              <button onClick={() => { setError(null); processAudio(); }} className="flex-1 px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700">Try Again</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AudioProcessor;
