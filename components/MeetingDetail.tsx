@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { Meeting } from '../types';
 
 interface MeetingDetailProps {
@@ -35,37 +34,30 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   const generateSummary = async () => {
     setIsGeneratingSummary(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const fullTranscript = meeting.transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Please summarize this meeting transcript and identify the main sentiment. Provide a concise summary and a few bullet points for action items.
-        
-        Transcript:
-        ${fullTranscript}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              summary: { type: Type.STRING },
-              actionItems: { type: Type.ARRAY, items: { type: Type.STRING } },
-              sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] }
-            },
-            required: ["summary", "actionItems", "sentiment"]
-          }
-        }
+
+      // Use backend API proxy
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/gemini/generate-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript: fullTranscript })
       });
-      
-      const result = JSON.parse(response.text || "{}");
+
+      if (!response.ok) {
+        throw new Error('Failed to generate summary');
+      }
+
+      const result = await response.json();
       setSummary(result.summary);
       setActionItems(result.actionItems || []);
-      onUpdateMeeting({ 
-        ...meeting, 
-        summary: result.summary, 
-        actionItems: result.actionItems, 
-        sentiment: result.sentiment 
+      onUpdateMeeting({
+        ...meeting,
+        summary: result.summary,
+        actionItems: result.actionItems,
+        sentiment: result.sentiment
       });
     } catch (err) {
       console.error("Summary error:", err);
@@ -116,21 +108,24 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
     setIsAsking(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const fullTranscript = meeting.transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Context: You are an assistant analyzing a meeting recording.
-        Transcript: ${fullTranscript}
-        
-        User Question: ${userMsg}`,
-        config: {
-          systemInstruction: "Be professional, helpful and refer specifically to the details in the transcript provided. If information is missing, say so."
-        }
+
+      // Use backend API proxy
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/gemini/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript: fullTranscript, question: userMsg })
       });
 
-      setChatHistory(prev => [...prev, { role: 'ai', text: response.text || "I'm sorry, I couldn't process that." }]);
+      if (!response.ok) {
+        throw new Error('Chat request failed');
+      }
+
+      const result = await response.json();
+      setChatHistory(prev => [...prev, { role: 'ai', text: result.answer || "I'm sorry, I couldn't process that." }]);
     } catch (err) {
       setChatHistory(prev => [...prev, { role: 'ai', text: "Error connecting to AI. Please try again." }]);
     } finally {
@@ -173,7 +168,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
         </div>
         <div className="flex gap-2">
           {hasUnsavedChanges && (
-            <button 
+            <button
               onClick={handleSaveChanges}
               className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -181,7 +176,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
               <span className="hidden md:inline">Save</span>
             </button>
           )}
-          <button 
+          <button
             onClick={handleShare}
             className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
           >
@@ -248,7 +243,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                           <span className="text-[10px] font-bold uppercase tracking-wider">AI Executive Summary</span>
                         </div>
                       </div>
-                      <textarea 
+                      <textarea
                         value={summary}
                         onChange={(e) => { setSummary(e.target.value); setHasUnsavedChanges(true); }}
                         className="w-full text-gray-700 leading-relaxed text-sm md:text-lg min-h-[150px] resize-none focus:outline-none"
@@ -262,14 +257,14 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                           <i className="fas fa-list-check text-green-500"></i>
                           Action Items
                         </h3>
-                        <button 
+                        <button
                           onClick={addActionItem}
                           className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100"
                         >
                           <i className="fas fa-plus text-xs"></i>
                         </button>
                       </div>
-                      
+
                       <div className="space-y-2 md:space-y-3">
                         {actionItems.length === 0 ? (
                           <p className="text-xs text-gray-400 italic">No action items identified.</p>
@@ -279,7 +274,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                               <span className="w-5 h-5 md:w-6 md:h-6 bg-green-50 text-green-600 rounded-full flex items-center justify-center shrink-0 mt-1">
                                 <i className="fas fa-check text-[8px] md:text-[10px]"></i>
                               </span>
-                              <input 
+                              <input
                                 type="text"
                                 value={item}
                                 onChange={(e) => updateActionItem(i, e.target.value)}
@@ -314,7 +309,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
               <i className="fas fa-xmark"></i>
             </button>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/20">
             {chatHistory.length === 0 && (
               <div className="text-center py-8">
@@ -326,11 +321,10 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             )}
             {chatHistory.map((chat, i) => (
               <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] p-3 rounded-2xl text-xs md:text-sm ${
-                  chat.role === 'user' 
-                  ? 'bg-blue-600 text-white rounded-br-none' 
-                  : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
-                }`}>
+                <div className={`max-w-[90%] p-3 rounded-2xl text-xs md:text-sm ${chat.role === 'user'
+                    ? 'bg-blue-600 text-white rounded-br-none'
+                    : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
+                  }`}>
                   {chat.text}
                 </div>
               </div>
@@ -350,14 +344,14 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
           <form onSubmit={handleAskAI} className="p-4 border-t border-gray-100 bg-white">
             <div className="relative">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask something..."
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-4 pr-10 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
-              <button 
+              <button
                 type="submit"
                 disabled={isAsking || !chatInput.trim()}
                 className="absolute right-1.5 top-1.5 w-7 h-7 bg-blue-600 text-white rounded-lg flex items-center justify-center disabled:opacity-50"
@@ -372,12 +366,11 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   );
 };
 
-const TabButton: React.FC<{active: boolean, onClick: () => void, label: string}> = ({active, onClick, label}) => (
-  <button 
+const TabButton: React.FC<{ active: boolean, onClick: () => void, label: string }> = ({ active, onClick, label }) => (
+  <button
     onClick={onClick}
-    className={`flex-1 md:flex-none px-4 py-4 text-[11px] md:text-sm font-bold border-b-2 transition-colors ${
-      active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-    }`}
+    className={`flex-1 md:flex-none px-4 py-4 text-[11px] md:text-sm font-bold border-b-2 transition-colors ${active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+      }`}
   >
     {label}
   </button>

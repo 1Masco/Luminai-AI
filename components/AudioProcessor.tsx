@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { Meeting } from '../types';
 
 interface AudioProcessorProps {
@@ -48,67 +47,37 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
         await new Promise(r => setTimeout(r, 1500));
         fileName = fileOrUrl.name;
         // Mock data for cloud files
-        base64Data = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="; 
+        base64Data = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
       }
-      
+
       setProgress(40);
       setStatus("Analyzing with Gemini AI...");
-      
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data,
-              },
-            },
-            {
-              text: `Please transcribe this audio file. This is: ${fileName}. 
-              Return a JSON object with: 
-              - title (string)
-              - transcript (array of {speaker: string, text: string, timestamp: number})
-              - summary (string)
-              - actionItems (array of strings)
-              - sentiment (enum: positive, neutral, negative)
-              - durationSeconds (number)`,
-            },
-          ],
+
+      // Use backend API proxy instead of direct Gemini API
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+      const response = await fetch(`${API_URL}/api/gemini/transcribe-audio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              transcript: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    speaker: { type: Type.STRING },
-                    text: { type: Type.STRING },
-                    timestamp: { type: Type.NUMBER }
-                  }
-                }
-              },
-              summary: { type: Type.STRING },
-              actionItems: { type: Type.ARRAY, items: { type: Type.STRING } },
-              sentiment: { type: Type.STRING },
-              durationSeconds: { type: Type.NUMBER }
-            }
-          }
-        }
+        body: JSON.stringify({
+          audioData: base64Data,
+          mimeType: mimeType,
+          fileName: fileName
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Transcription failed');
+      }
+
+      const result = await response.json();
 
       setProgress(90);
       setStatus("Finalizing meeting report...");
-      
-      const result = JSON.parse(response.text || "{}");
-      
+
       const newMeeting: Meeting = {
         id: Date.now().toString(),
         title: result.title || fileName.replace(/\.[^/.]+$/, ""),
