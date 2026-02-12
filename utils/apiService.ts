@@ -100,6 +100,82 @@ class APIService {
             return false;
         }
     }
+
+    /**
+     * Initiate Google Calendar OAuth flow
+     */
+    async connectGoogleCalendar(token: string) {
+        const response = await fetch(`${this.baseURL}/api/calendar/connect/google`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to connect Google Calendar');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Initiate Outlook Calendar OAuth flow
+     */
+    async connectOutlookCalendar(token: string) {
+        const response = await fetch(`${this.baseURL}/api/calendar/connect/outlook`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to connect Outlook Calendar');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Fetch calendar events from connected calendars
+     */
+    async getCalendarEvents(token: string) {
+        const response = await fetch(`${this.baseURL}/api/calendar/events`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch calendar events');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Disconnect a calendar provider
+     */
+    async disconnectCalendar(token: string, provider: 'google' | 'outlook') {
+        const response = await fetch(`${this.baseURL}/api/calendar/disconnect/${provider}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to disconnect calendar');
+        }
+
+        return response.json();
+    }
 }
 
 export const apiService = new APIService();
