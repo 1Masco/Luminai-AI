@@ -176,6 +176,88 @@ class APIService {
 
         return response.json();
     }
+
+    // =============================================
+    // SHARING METHODS
+    // =============================================
+
+    /**
+     * Get meetings shared with the current user
+     */
+    async getSharedWithMe(token: string) {
+        const response = await fetch(`${this.baseURL}/api/sharing/shared-with-me`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch shared meetings');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Share a meeting with another user by email
+     */
+    async shareMeeting(token: string, meetingId: string, email: string, permission: string = 'view') {
+        const response = await fetch(`${this.baseURL}/api/sharing/share`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ meetingId, email, permission })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to share meeting');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Remove a share
+     */
+    async unshareMeeting(token: string, shareId: string) {
+        const response = await fetch(`${this.baseURL}/api/sharing/unshare/${shareId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to remove share');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Mark a shared meeting as viewed
+     */
+    async markSharedViewed(token: string, shareId: string) {
+        const response = await fetch(`${this.baseURL}/api/sharing/mark-viewed/${shareId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to mark as viewed');
+        }
+
+        return response.json();
+    }
 }
 
 export const apiService = new APIService();

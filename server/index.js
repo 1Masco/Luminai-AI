@@ -8,6 +8,9 @@ import authRoutes from './routes/auth.js';
 import notesRoutes from './routes/notes.js';
 import meetingsRoutes from './routes/meetings.js';
 import calendarRoutes from './routes/calendar.js';
+import cloudRoutes from './routes/cloud.js';
+import sharingRoutes from './routes/sharing.js';
+import stripeRoutes from './routes/stripe.js';
 
 // Load environment variables
 dotenv.config();
@@ -45,8 +48,14 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Body parser middleware
-app.use(express.json({ limit: '50mb' }));
+// Body parser middleware (skip for Stripe webhook which needs raw body)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.json({ limit: '50mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health check endpoint
@@ -60,6 +69,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/cloud', cloudRoutes);
+app.use('/api/sharing', sharingRoutes);
+app.use('/api/stripe', stripeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

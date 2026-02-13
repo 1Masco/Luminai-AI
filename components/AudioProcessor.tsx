@@ -42,12 +42,29 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
         mimeType = fileOrUrl.type || "audio/mpeg";
         fileName = fileOrUrl.name;
       } else {
-        setStatus(`Fetching from ${fileOrUrl.url.includes('drive') ? 'Google Drive' : 'Dropbox'}...`);
-        // Simulate a fetch
-        await new Promise(r => setTimeout(r, 1500));
+        const source = (fileOrUrl as any).source || (fileOrUrl.url.includes('drive') ? 'google_drive' : 'dropbox');
+        setStatus(`Fetching from ${source === 'google_drive' ? 'Google Drive' : 'Dropbox'}...`);
         fileName = fileOrUrl.name;
-        // Mock data for cloud files
-        base64Data = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const cloudResponse = await fetch(`${API_URL}/api/cloud/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: fileOrUrl.url,
+            source,
+            fileName: fileOrUrl.name
+          })
+        });
+
+        if (!cloudResponse.ok) {
+          const errorData = await cloudResponse.json();
+          throw new Error(errorData.error || 'Failed to download cloud file');
+        }
+
+        const cloudData = await cloudResponse.json();
+        base64Data = cloudData.base64Data;
+        mimeType = cloudData.mimeType || 'audio/mpeg';
       }
 
       setProgress(40);

@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Meeting } from '../types';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import apiService from '../utils/apiService';
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -18,6 +20,11 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   const [isAsking, setIsAsking] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [sharePermission, setSharePermission] = useState<'view' | 'comment'>('view');
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState('');
 
   useEffect(() => {
     setSummary(meeting.summary || "");
@@ -76,9 +83,47 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
     setHasUnsavedChanges(false);
   };
 
-  const handleShare = () => {
-    setShowShareToast(true);
-    setTimeout(() => setShowShareToast(false), 3000);
+  const handleShare = async () => {
+    if (!isSupabaseConfigured()) {
+      // Fallback: copy link to clipboard
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 3000);
+      return;
+    }
+    setShowShareDialog(true);
+    setShareEmail('');
+    setShareSuccess('');
+  };
+
+  const handleShareSubmit = async () => {
+    if (!shareEmail.trim()) return;
+
+    setIsSharing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Please sign in to share meetings.');
+        return;
+      }
+
+      const result = await apiService.shareMeeting(
+        session.access_token,
+        meeting.id,
+        shareEmail.trim(),
+        sharePermission
+      );
+
+      setShareSuccess(result.message || `Shared with ${shareEmail}`);
+      setShareEmail('');
+      setTimeout(() => {
+        setShowShareDialog(false);
+        setShareSuccess('');
+      }, 2000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to share meeting');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const updateActionItem = (index: number, text: string) => {
@@ -145,6 +190,90 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 w-[90%] md:w-auto">
           <i className="fas fa-link text-green-400"></i>
           <span className="text-sm font-bold">Share link copied!</span>
+        </div>
+      )}
+
+      {/* Share Dialog */}
+      {showShareDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowShareDialog(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <i className="fas fa-share-nodes text-blue-500"></i>
+                Share Meeting
+              </h3>
+              <button onClick={() => setShowShareDialog(false)} className="text-gray-400 hover:text-gray-600">
+                <i className="fas fa-xmark"></i>
+              </button>
+            </div>
+
+            {shareSuccess ? (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <i className="fas fa-check text-xl"></i>
+                </div>
+                <p className="text-sm font-bold text-gray-900">{shareSuccess}</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Recipient Email</label>
+                    <input
+                      type="email"
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                      placeholder="colleague@company.com"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Permission</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSharePermission('view')}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'view'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                          }`}
+                      >
+                        <i className="fas fa-eye mr-2"></i>View Only
+                      </button>
+                      <button
+                        onClick={() => setSharePermission('comment')}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'comment'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                          }`}
+                      >
+                        <i className="fas fa-comment mr-2"></i>Comment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => setShowShareDialog(false)}
+                    className="flex-1 py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleShareSubmit}
+                    disabled={!shareEmail.trim() || isSharing}
+                    className="flex-1 py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSharing ? (
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Sharing...</>
+                    ) : (
+                      <><i className="fas fa-paper-plane"></i> Share</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -322,8 +451,8 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             {chatHistory.map((chat, i) => (
               <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[90%] p-3 rounded-2xl text-xs md:text-sm ${chat.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none'
-                    : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
+                  ? 'bg-blue-600 text-white rounded-br-none'
+                  : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
                   }`}>
                   {chat.text}
                 </div>

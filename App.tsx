@@ -12,6 +12,7 @@ import SharedView from './components/SharedView';
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import BottomNav from './components/BottomNav';
+import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -22,6 +23,7 @@ const App: React.FC = () => {
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | { name: string, url: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);
 
   // Minutes constants
   const PLAN_LIMITS = {
@@ -30,19 +32,86 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem('lumina_auth');
     const savedMeetings = localStorage.getItem('lumina_meetings');
     const savedNotes = localStorage.getItem('lumina_notes');
-    const savedUser = localStorage.getItem('lumina_user');
-    
-    if (savedAuth === 'true' && savedUser) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(savedUser));
-    }
-    
+
     if (savedMeetings) setMeetings(JSON.parse(savedMeetings));
     if (savedNotes) setNotes(JSON.parse(savedNotes));
   }, []);
+
+  // Supabase auth state listener
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      // Fallback: check localStorage for mock auth
+      const savedAuth = localStorage.getItem('lumina_auth');
+      const savedUser = localStorage.getItem('lumina_user');
+      if (savedAuth === 'true' && savedUser) {
+        setIsAuthenticated(true);
+        setUser(JSON.parse(savedUser));
+      }
+      return;
+    }
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        hydrateUser(session.user);
+      }
+    });
+
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        hydrateUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        setUser(null);
+        setCurrentView(AppView.DASHBOARD);
+        localStorage.removeItem('lumina_auth');
+        localStorage.removeItem('lumina_user');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Helper to build UserProfile from Supabase user
+  const hydrateUser = async (supabaseUser: any) => {
+    let profile: UserProfile = {
+      name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
+      email: supabaseUser.email || '',
+      phone: supabaseUser.phone || undefined,
+      avatar: supabaseUser.user_metadata?.avatar_url || `https://i.pravatar.cc/150?u=${supabaseUser.email}`,
+      plan: 'free',
+      connectedApps: { google: false, zoom: false, teams: false, dropbox: false }
+    };
+
+    // Try to fetch profile from database
+    try {
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('name, avatar, plan, connected_apps')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (dbProfile) {
+        profile = {
+          ...profile,
+          name: dbProfile.name || profile.name,
+          avatar: dbProfile.avatar || profile.avatar,
+          plan: dbProfile.plan || 'free',
+          connectedApps: dbProfile.connected_apps || profile.connectedApps
+        };
+      }
+    } catch (err) {
+      console.warn('Could not fetch profile from database:', err);
+    }
+
+    setUser(profile);
+    setIsAuthenticated(true);
+    localStorage.setItem('lumina_user', JSON.stringify(profile));
+    localStorage.setItem('lumina_auth', 'true');
+  };;
 
   useEffect(() => {
     if (meetings.length > 0) localStorage.setItem('lumina_meetings', JSON.stringify(meetings));
@@ -59,6 +128,25 @@ const App: React.FC = () => {
     } else {
       localStorage.removeItem('lumina_auth');
       localStorage.removeItem('lumina_user');
+    }
+  }, [user]);
+
+  // Handle Stripe Redirection
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    if (params.get('upgrade') === 'success') {
+      setShowUpgradeSuccess(true);
+      setTimeout(() => setShowUpgradeSuccess(false), 5000);
+      setCurrentView(AppView.PROFILE);
+
+      // Clear URL params without reloading
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
+
+      // Force refresh user data to get new plan
+      if (user?.email) {
+        // Hydrate will be re-triggered by AuthStateChange or we can manual reload if needed
+        // but for now let's just show the success message
+      }
     }
   }, [user]);
 
@@ -129,14 +217,22 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (userData: UserProfile) => {
+    // For mock/fallback auth when Supabase is not configured
     setUser(userData);
     setIsAuthenticated(true);
+    localStorage.setItem('lumina_user', JSON.stringify(userData));
+    localStorage.setItem('lumina_auth', 'true');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isSupabaseConfigured()) {
+      await supabase.auth.signOut();
+    }
     setIsAuthenticated(false);
     setUser(null);
     setCurrentView(AppView.DASHBOARD);
+    localStorage.removeItem('lumina_auth');
+    localStorage.removeItem('lumina_user');
   };
 
   const navigateTo = (view: AppView) => {
@@ -155,24 +251,35 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
+      {/* Stripe Success Toast */}
+      {showUpgradeSuccess && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 w-[90%] md:w-auto">
+          <i className="fas fa-crown text-yellow-400"></i>
+          <div>
+            <p className="text-sm font-bold">Upgrade Successful!</p>
+            <p className="text-xs text-gray-300">Thank you for subscribing to Lumina.</p>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar - Desktop Always Visible */}
-      <Sidebar 
-        currentView={currentView} 
-        onNavigate={navigateTo} 
+      <Sidebar
+        currentView={currentView}
+        onNavigate={navigateTo}
         onStartRecording={handleStartRecording}
         user={user!}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      
+
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-      
+
       <main className="flex-1 overflow-hidden relative flex flex-col h-full">
         {/* Mobile Header (Simplified) */}
         {!hideMobileNav && (
@@ -183,7 +290,7 @@ const App: React.FC = () => {
               </div>
               <span className="font-bold text-gray-800">Lumina</span>
             </div>
-            <button 
+            <button
               onClick={handleStartRecording}
               className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"
             >
@@ -194,39 +301,43 @@ const App: React.FC = () => {
 
         <div className={`flex-1 overflow-y-auto overflow-x-hidden ${!hideMobileNav ? 'pb-20 lg:pb-0' : ''}`}>
           {currentView === AppView.DASHBOARD && (
-            <Dashboard 
-              meetings={meetings} 
+            <Dashboard
+              meetings={meetings}
               minutesUsed={totalMinutesUsed}
-              minutesLimit={user!.plan === 'pro' ? PLAN_LIMITS.pro : PLAN_LIMITS.free}
-              onViewMeeting={handleViewMeeting} 
+              minutesLimit={user!.plan === 'team' ? 999999 : user!.plan === 'pro' ? PLAN_LIMITS.pro : PLAN_LIMITS.free}
+              onViewMeeting={handleViewMeeting}
               onDeleteMeeting={handleDeleteMeeting}
               onStartRecording={handleStartRecording}
               onFileSelect={handleFileSelect}
               onOpenCalendar={() => navigateTo(AppView.CALENDAR)}
+              userPlan={user?.plan || 'free'}
             />
           )}
-          
+
           {currentView === AppView.RECORDING && (
             <RecordingSession onFinish={handleFinishProcessing} onCancel={() => navigateTo(AppView.DASHBOARD)} />
           )}
 
           {currentView === AppView.PROCESSING && pendingFile && (
-            <AudioProcessor 
-              fileOrUrl={pendingFile} 
-              onFinish={handleFinishProcessing} 
+            <AudioProcessor
+              fileOrUrl={pendingFile}
+              onFinish={handleFinishProcessing}
               onCancel={() => {
                 setPendingFile(null);
                 navigateTo(AppView.DASHBOARD);
-              }} 
+              }}
             />
           )}
 
           {currentView === AppView.CALENDAR && (
-            <CalendarSync onBack={() => navigateTo(AppView.DASHBOARD)} />
+            <CalendarSync
+              onBack={() => navigateTo(AppView.DASHBOARD)}
+              userPlan={user?.plan || 'free'}
+            />
           )}
 
           {currentView === AppView.NOTES && (
-            <NotesView 
+            <NotesView
               notes={notes}
               meetings={meetings}
               onSaveNote={handleSaveNote}
@@ -242,10 +353,10 @@ const App: React.FC = () => {
           {currentView === AppView.PROFILE && (
             <ProfileView user={user!} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
           )}
-          
+
           {currentView === AppView.MEETING_DETAIL && selectedMeeting && (
-            <MeetingDetail 
-              meeting={selectedMeeting} 
+            <MeetingDetail
+              meeting={selectedMeeting}
               onBack={() => navigateTo(AppView.DASHBOARD)}
               onUpdateMeeting={handleUpdateMeeting}
             />
@@ -254,7 +365,7 @@ const App: React.FC = () => {
 
         {/* Mobile Bottom Navigation */}
         {!hideMobileNav && (
-          <BottomNav 
+          <BottomNav
             currentView={currentView}
             onNavigate={navigateTo}
           />

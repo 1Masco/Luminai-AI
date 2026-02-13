@@ -33,7 +33,7 @@ export interface UserProfile {
   email: string;
   phone?: string;
   avatar: string;
-  plan: 'free' | 'pro';
+  plan: 'free' | 'pro' | 'team';
   connectedApps: {
     google: boolean;
     zoom: boolean;

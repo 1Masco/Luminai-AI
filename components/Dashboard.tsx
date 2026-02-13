@@ -1,6 +1,6 @@
-
 import React, { useRef, useState } from 'react';
 import { Meeting } from '../types';
+import { canAccessFeature, PlanType } from '../utils/planFeatures';
 
 interface DashboardProps {
   meetings: Meeting[];
@@ -11,14 +11,27 @@ interface DashboardProps {
   onStartRecording: () => void;
   onFileSelect: (file: File | { name: string, url: string }) => void;
   onOpenCalendar: () => void;
+  userPlan: PlanType;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLimit, onViewMeeting, onDeleteMeeting, onStartRecording, onFileSelect, onOpenCalendar }) => {
+const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLimit, onViewMeeting, onDeleteMeeting, onStartRecording, onFileSelect, onOpenCalendar, userPlan }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCloudPicker, setShowCloudPicker] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const canAccessCloudImport = canAccessFeature(userPlan, 'cloudImport');
 
   const handleImportClick = () => {
+    // Local file import is available to all plans
     fileInputRef.current?.click();
+  };
+
+  const handleCloudImportClick = () => {
+    if (!canAccessCloudImport) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setShowCloudPicker(true);
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,12 +41,134 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
     }
   };
 
-  const handleCloudPick = (provider: 'drive' | 'dropbox') => {
-    const mockFiles = {
-      drive: { name: "Quarterly_Review.mp3", url: "mock_url_drive" },
-      dropbox: { name: "Meeting_Audio_Dropbox.wav", url: "mock_url_dropbox" }
+  const handleGoogleDrivePick = () => {
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+    if (!apiKey || !clientId) {
+      alert('Google Drive is not configured. Please set VITE_GOOGLE_API_KEY and VITE_GOOGLE_CLIENT_ID in your environment.');
+      setShowCloudPicker(false);
+      return;
+    }
+
+    setShowCloudPicker(false);
+
+    // Helper to load a script if not already loaded
+    const loadScript = (src: string, id: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if (document.getElementById(id)) { resolve(); return; }
+        const script = document.createElement('script');
+        script.src = src;
+        script.id = id;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
     };
-    onFileSelect(mockFiles[provider]);
+
+    // Load both scripts, then request token and open picker
+    const initPicker = async () => {
+      try {
+        // Load Google API (for Picker) and Google Identity Services (for auth)
+        await Promise.all([
+          loadScript('https://apis.google.com/js/api.js', 'google-api-script'),
+          loadScript('https://accounts.google.com/gsi/client', 'google-gsi-script'),
+        ]);
+
+        // Load the Picker module
+        await new Promise<void>((resolve) => {
+          (window as any).gapi.load('picker', { callback: resolve });
+        });
+
+        // Request an access token using Google Identity Services
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.readonly',
+          callback: (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.error('Google OAuth error:', tokenResponse);
+              alert('Failed to authenticate with Google. Please try again.');
+              return;
+            }
+            // Build and show the picker
+            const picker = new (window as any).google.picker.PickerBuilder()
+              .addView(
+                new (window as any).google.picker.DocsView()
+                  .setMimeTypes('audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm,video/mp4,video/webm,audio/x-m4a,audio/flac,audio/aac')
+              )
+              .setOAuthToken(tokenResponse.access_token)
+              .setDeveloperKey(apiKey)
+              .setCallback((data: any) => {
+                if (data.action === 'picked' && data.docs?.length > 0) {
+                  const file = data.docs[0];
+                  onFileSelect({
+                    name: file.name,
+                    url: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+                    source: 'google_drive'
+                  } as any);
+                }
+              })
+              .build();
+            picker.setVisible(true);
+          },
+        });
+
+        tokenClient.requestAccessToken({ prompt: '' });
+
+      } catch (err) {
+        console.error('Google Picker init error:', err);
+        alert('Failed to load Google Drive picker. Please check your internet connection and try again.');
+      }
+    };
+
+    initPicker();
+  };
+
+  const handleDropboxPick = () => {
+    const appKey = import.meta.env.VITE_DROPBOX_APP_KEY;
+
+    if (!appKey) {
+      alert('Dropbox is not configured. Please set VITE_DROPBOX_APP_KEY in your environment.');
+      setShowCloudPicker(false);
+      return;
+    }
+
+    const loadDropboxChooser = () => {
+      if ((window as any).Dropbox?.choose) {
+        openDropboxChooser();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
+      script.id = 'dropboxjs';
+      script.setAttribute('data-app-key', appKey);
+      script.onload = () => openDropboxChooser();
+      document.body.appendChild(script);
+    };
+
+    const openDropboxChooser = () => {
+      (window as any).Dropbox.choose({
+        success: (files: any[]) => {
+          if (files.length > 0) {
+            const file = files[0];
+            onFileSelect({
+              name: file.name,
+              url: file.link,
+              source: 'dropbox'
+            } as any);
+          }
+        },
+        linkType: 'direct',
+        multiselect: false,
+        extensions: ['.mp3', '.wav', '.m4a', '.ogg', '.webm', '.mp4', '.flac', '.aac'],
+        folderselect: false,
+      });
+    };
+
+    loadDropboxChooser();
     setShowCloudPicker(false);
   };
 
@@ -41,6 +176,32 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      {/* Upgrade Modal for Free Users (Cloud Import) */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowUpgradeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-200">
+              <i className="fas fa-cloud-arrow-down text-white text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900 mb-2">Cloud Import is Pro</h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Upgrade to Lumina Pro to import audio and video files directly from Google Drive and Dropbox.
+            </p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left space-y-2">
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Import from Google Drive & Dropbox</span></div>
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">6,000 transcription minutes/month</span></div>
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Advanced AI summaries</span></div>
+            </div>
+            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-200">
+              Upgrade to Pro
+            </button>
+            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 mt-2">
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Good day!</h1>
@@ -50,8 +211,8 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
           <p className="text-xs md:text-sm font-medium text-gray-500">Minutes used this month</p>
           <p className="text-xl md:text-2xl font-bold text-gray-900">{minutesUsed} / {minutesLimit}</p>
           <div className="w-full md:w-32 bg-gray-200 h-1.5 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all ${usagePercent > 90 ? 'bg-red-500' : 'bg-blue-600'}`} 
+            <div
+              className={`h-full transition-all ${usagePercent > 90 ? 'bg-red-500' : 'bg-blue-600'}`}
               style={{ width: `${usagePercent}%` }}
             ></div>
           </div>
@@ -59,51 +220,51 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
-        <QuickActionCard 
-          icon="fa-microphone" 
-          color="bg-blue-100 text-blue-600" 
+        <QuickActionCard
+          icon="fa-microphone"
+          color="bg-blue-100 text-blue-600"
           activeColor="group-hover:bg-blue-600"
-          title="Record Live" 
+          title="Record Live"
           desc="Real-time highlights"
-          onClick={onStartRecording} 
+          onClick={onStartRecording}
         />
-        <QuickActionCard 
-          icon="fa-upload" 
-          color="bg-purple-100 text-purple-600" 
+        <QuickActionCard
+          icon="fa-upload"
+          color="bg-purple-100 text-purple-600"
           activeColor="group-hover:bg-purple-600"
-          title="Upload File" 
+          title="Upload File"
           desc="MP3, WAV, MP4"
-          onClick={handleImportClick} 
+          onClick={handleImportClick}
         />
         <div className="relative group">
-          <QuickActionCard 
-            icon="fa-cloud-arrow-down" 
-            color="bg-orange-100 text-orange-600" 
+          <QuickActionCard
+            icon="fa-cloud-arrow-down"
+            color="bg-orange-100 text-orange-600"
             activeColor="group-hover:bg-orange-600"
-            title="Cloud Import" 
+            title="Cloud Import"
             desc="Drive / Dropbox"
-            onClick={() => setShowCloudPicker(!showCloudPicker)} 
+            onClick={handleCloudImportClick}
           />
           {showCloudPicker && (
             <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-2 animate-in fade-in slide-in-from-top-2">
-               <button onClick={(e) => { e.stopPropagation(); handleCloudPick('drive'); }} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 font-medium">
-                 <i className="fab fa-google-drive text-blue-500"></i>
-                 Google Drive
-               </button>
-               <button onClick={(e) => { e.stopPropagation(); handleCloudPick('dropbox'); }} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 font-medium">
-                 <i className="fab fa-dropbox text-blue-400"></i>
-                 Dropbox
-               </button>
+              <button onClick={(e) => { e.stopPropagation(); handleGoogleDrivePick(); }} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 font-medium">
+                <i className="fab fa-google-drive text-blue-500"></i>
+                Google Drive
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); handleDropboxPick(); }} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 font-medium">
+                <i className="fab fa-dropbox text-blue-400"></i>
+                Dropbox
+              </button>
             </div>
           )}
         </div>
-        <QuickActionCard 
-          icon="fa-calendar-check" 
-          color="bg-green-100 text-green-600" 
+        <QuickActionCard
+          icon="fa-calendar-check"
+          color="bg-green-100 text-green-600"
           activeColor="group-hover:bg-green-600"
-          title="Calendar Sync" 
+          title="Calendar Sync"
           desc="Auto-join bots"
-          onClick={onOpenCalendar} 
+          onClick={onOpenCalendar}
         />
         <input type="file" ref={fileInputRef} className="hidden" accept="audio/*,video/*" onChange={onFileChange} />
       </section>
@@ -122,7 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
               </div>
               <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No recordings yet</h3>
               <p className="text-sm text-gray-500 mb-6">Start your first recording to see it here.</p>
-              <button 
+              <button
                 onClick={onStartRecording}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
@@ -132,8 +293,8 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
           ) : (
             <div className="space-y-3 md:space-y-4">
               {meetings.map(meeting => (
-                <div 
-                  key={meeting.id} 
+                <div
+                  key={meeting.id}
                   className="bg-white p-3 md:p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 md:gap-4 hover:border-blue-200 transition-colors cursor-pointer group"
                   onClick={() => onViewMeeting(meeting.id)}
                 >
@@ -149,7 +310,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
                       <span>{meeting.transcript.length} parts</span>
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm('Are you sure?')) onDeleteMeeting(meeting.id);
@@ -170,13 +331,13 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
             <button onClick={onOpenCalendar} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase">Edit Sync</button>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shadow-sm">
-             <div className="space-y-4 md:space-y-6">
-                <UpcomingMeeting time="10:00 AM" title="Product Sync" platform="google_meet" isRecording={true} />
-                <UpcomingMeeting time="1:30 PM" title="Design Review" platform="zoom" isRecording={false} />
-             </div>
-             <button onClick={onOpenCalendar} className="w-full mt-6 py-2 md:py-3 border border-gray-100 rounded-xl text-[10px] md:text-xs font-bold text-gray-500 hover:bg-gray-50 transition-colors">
-               View Full Schedule
-             </button>
+            <div className="space-y-4 md:space-y-6">
+              <UpcomingMeeting time="10:00 AM" title="Product Sync" platform="google_meet" isRecording={true} />
+              <UpcomingMeeting time="1:30 PM" title="Design Review" platform="zoom" isRecording={false} />
+            </div>
+            <button onClick={onOpenCalendar} className="w-full mt-6 py-2 md:py-3 border border-gray-100 rounded-xl text-[10px] md:text-xs font-bold text-gray-500 hover:bg-gray-50 transition-colors">
+              View Full Schedule
+            </button>
           </div>
         </section>
       </div>
@@ -184,9 +345,9 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
   );
 };
 
-const QuickActionCard: React.FC<{icon: string, color: string, activeColor: string, title: string, desc: string, onClick: () => void}> = ({icon, color, activeColor, title, desc, onClick}) => (
-  <div 
-    className="bg-white p-3 md:p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" 
+const QuickActionCard: React.FC<{ icon: string, color: string, activeColor: string, title: string, desc: string, onClick: () => void }> = ({ icon, color, activeColor, title, desc, onClick }) => (
+  <div
+    className="bg-white p-3 md:p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
     onClick={onClick}
   >
     <div className={`w-8 h-8 md:w-12 md:h-12 ${color} rounded-full flex items-center justify-center mb-2 md:mb-4 text-sm md:text-xl ${activeColor} group-hover:text-white transition-colors`}>
@@ -197,13 +358,12 @@ const QuickActionCard: React.FC<{icon: string, color: string, activeColor: strin
   </div>
 );
 
-const UpcomingMeeting: React.FC<{time: string, title: string, platform: string, isRecording: boolean}> = ({time, title, platform, isRecording}) => (
+const UpcomingMeeting: React.FC<{ time: string, title: string, platform: string, isRecording: boolean }> = ({ time, title, platform, isRecording }) => (
   <div className="flex items-start gap-3">
-    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${
-      platform === 'google_meet' ? 'bg-blue-50 text-blue-500' :
+    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${platform === 'google_meet' ? 'bg-blue-50 text-blue-500' :
       platform === 'zoom' ? 'bg-blue-50 text-blue-600' :
-      'bg-purple-50 text-purple-600'
-    }`}>
+        'bg-purple-50 text-purple-600'
+      }`}>
       <i className={`fas ${platform === 'google_meet' ? 'fa-video' : 'fa-video'} text-sm`}></i>
     </div>
     <div className="flex-1 overflow-hidden">

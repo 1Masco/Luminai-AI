@@ -1,19 +1,23 @@
-
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
+import { canAccessFeature, PlanType } from '../utils/planFeatures';
 
 interface CalendarSyncProps {
   onBack: () => void;
+  userPlan: PlanType;
 }
 
-const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
+const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack, userPlan }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectedGoogle, setConnectedGoogle] = useState(false);
   const [connectedOutlook, setConnectedOutlook] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [userEmail, setUserEmail] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const canAccessCalendar = canAccessFeature(userPlan, 'calendarSync');
 
   useEffect(() => {
     loadUserData();
@@ -23,7 +27,10 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
   const loadUserData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
       setUserEmail(user.email || '');
 
@@ -76,6 +83,11 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
   };
 
   const handleConnectGoogle = async () => {
+    if (!canAccessCalendar) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -92,6 +104,11 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
   };
 
   const handleConnectOutlook = async () => {
+    if (!canAccessCalendar) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -150,6 +167,32 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
 
   return (
     <div className="h-full bg-white flex flex-col">
+      {/* Upgrade Modal for Free Users */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowUpgradeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-200">
+              <i className="fas fa-calendar text-white text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900 mb-2">Calendar Sync is Pro</h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Upgrade to Lumina Pro to automatically detect and record meetings from your Google Calendar and Outlook.
+            </p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left space-y-2">
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Auto-detect Zoom, Meet, Teams links</span></div>
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">6,000 transcription minutes/month</span></div>
+              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Advanced AI summaries</span></div>
+            </div>
+            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-200">
+              Upgrade to Pro
+            </button>
+            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 mt-2">
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="p-6 border-b border-gray-100 flex items-center gap-4">
         <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
           <i className="fas fa-arrow-left"></i>
@@ -268,12 +311,12 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
                   {events.map(event => (
                     <div key={event.id} className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4 hover:border-blue-100 transition-colors shadow-sm">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl ${event.platform === 'google_meet' ? 'bg-blue-50 text-blue-600' :
-                          event.platform === 'zoom' ? 'bg-blue-100 text-blue-700' :
-                            'bg-purple-50 text-purple-600'
+                        event.platform === 'zoom' ? 'bg-blue-100 text-blue-700' :
+                          'bg-purple-50 text-purple-600'
                         }`}>
                         <i className={`fas ${event.platform === 'google_meet' ? 'fa-video' :
-                            event.platform === 'zoom' ? 'fa-video' :
-                              'fa-users-rectangle'
+                          event.platform === 'zoom' ? 'fa-video' :
+                            'fa-users-rectangle'
                           }`}></i>
                       </div>
 
