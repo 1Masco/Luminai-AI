@@ -1,25 +1,19 @@
 import React, { useRef, useState } from 'react';
 import { Meeting } from '../types';
-import { canAccessFeature, PlanType } from '../utils/planFeatures';
 
 interface DashboardProps {
   meetings: Meeting[];
   minutesUsed: number;
-  minutesLimit: number;
   onViewMeeting: (id: string) => void;
   onDeleteMeeting: (id: string) => void;
   onStartRecording: () => void;
   onFileSelect: (file: File | { name: string, url: string }) => void;
   onOpenCalendar: () => void;
-  userPlan: PlanType;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLimit, onViewMeeting, onDeleteMeeting, onStartRecording, onFileSelect, onOpenCalendar, userPlan }) => {
+const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeeting, onDeleteMeeting, onStartRecording, onFileSelect, onOpenCalendar }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCloudPicker, setShowCloudPicker] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  const canAccessCloudImport = canAccessFeature(userPlan, 'cloudImport');
 
   const handleImportClick = () => {
     // Local file import is available to all plans
@@ -27,10 +21,6 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
   };
 
   const handleCloudImportClick = () => {
-    if (!canAccessCloudImport) {
-      setShowUpgradeModal(true);
-      return;
-    }
     setShowCloudPicker(true);
   };
 
@@ -172,35 +162,8 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
     setShowCloudPicker(false);
   };
 
-  const usagePercent = Math.min(100, (minutesUsed / minutesLimit) * 100);
-
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      {/* Upgrade Modal for Free Users (Cloud Import) */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowUpgradeModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-200">
-              <i className="fas fa-cloud-arrow-down text-white text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900 mb-2">Cloud Import is Pro</h3>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              Upgrade to Lumina Pro to import audio and video files directly from Google Drive and Dropbox.
-            </p>
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left space-y-2">
-              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Import from Google Drive & Dropbox</span></div>
-              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">6,000 transcription minutes/month</span></div>
-              <div className="flex items-center gap-2 text-sm"><i className="fas fa-check-circle text-green-500"></i><span className="text-gray-700">Advanced AI summaries</span></div>
-            </div>
-            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-200">
-              Upgrade to Pro
-            </button>
-            <button onClick={() => setShowUpgradeModal(false)} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 mt-2">
-              Maybe Later
-            </button>
-          </div>
-        </div>
-      )}
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
@@ -208,14 +171,8 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
           <p className="text-sm md:text-base text-gray-500">Capture and summarize your conversations with AI.</p>
         </div>
         <div className="w-full md:w-auto text-left md:text-right flex flex-col items-start md:items-end gap-1">
-          <p className="text-xs md:text-sm font-medium text-gray-500">Minutes used this month</p>
-          <p className="text-xl md:text-2xl font-bold text-gray-900">{minutesUsed} / {minutesLimit}</p>
-          <div className="w-full md:w-32 bg-gray-200 h-1.5 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all ${usagePercent > 90 ? 'bg-red-500' : 'bg-blue-600'}`}
-              style={{ width: `${usagePercent}%` }}
-            ></div>
-          </div>
+          <p className="text-xs md:text-sm font-medium text-gray-500">Total minutes recorded</p>
+          <p className="text-xl md:text-2xl font-bold text-gray-900">{minutesUsed}</p>
         </div>
       </header>
 
@@ -233,7 +190,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
           color="bg-purple-100 text-purple-600"
           activeColor="group-hover:bg-purple-600"
           title="Upload File"
-          desc="MP3, WAV, MP4"
+          desc="MP3, WAV, PDF"
           onClick={handleImportClick}
         />
         <div className="relative group">
@@ -266,7 +223,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, minutesLim
           desc="Auto-join bots"
           onClick={onOpenCalendar}
         />
-        <input type="file" ref={fileInputRef} className="hidden" accept="audio/*,video/*" onChange={onFileChange} />
+        <input type="file" ref={fileInputRef} className="hidden" accept="audio/*,video/*,application/pdf" onChange={onFileChange} />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

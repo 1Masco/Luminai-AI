@@ -23,13 +23,6 @@ const App: React.FC = () => {
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | { name: string, url: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);
-
-  // Minutes constants
-  const PLAN_LIMITS = {
-    free: 60,   // 60 minutes
-    pro: 6000   // 6000 minutes
-  };
 
   useEffect(() => {
     const savedMeetings = localStorage.getItem('lumina_meetings');
@@ -131,48 +124,17 @@ const App: React.FC = () => {
     }
   }, [user]);
 
-  // Handle Stripe Redirection
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1]);
-    if (params.get('upgrade') === 'success') {
-      setShowUpgradeSuccess(true);
-      setTimeout(() => setShowUpgradeSuccess(false), 5000);
-      setCurrentView(AppView.PROFILE);
-
-      // Clear URL params without reloading
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
-
-      // Force refresh user data to get new plan
-      if (user?.email) {
-        // Hydrate will be re-triggered by AuthStateChange or we can manual reload if needed
-        // but for now let's just show the success message
-      }
-    }
-  }, [user]);
-
   const totalMinutesUsed = useMemo(() => {
     const totalSeconds = meetings.reduce((acc, m) => acc + (m.duration || 0), 0);
     return Math.ceil(totalSeconds / 60);
   }, [meetings]);
 
-  const isLimitReached = user?.plan === 'free' && totalMinutesUsed >= PLAN_LIMITS.free;
-
   const handleStartRecording = () => {
-    if (isLimitReached) {
-      alert("Minutes limit reached! Please upgrade your plan in settings.");
-      setCurrentView(AppView.PROFILE);
-      return;
-    }
     setCurrentView(AppView.RECORDING);
     setIsSidebarOpen(false);
   };
 
   const handleFileSelect = (file: File | { name: string, url: string }) => {
-    if (isLimitReached) {
-      alert("Minutes limit reached! Please upgrade your plan in settings.");
-      setCurrentView(AppView.PROFILE);
-      return;
-    }
     setPendingFile(file);
     setCurrentView(AppView.PROCESSING);
     setIsSidebarOpen(false);
@@ -251,16 +213,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
-      {/* Stripe Success Toast */}
-      {showUpgradeSuccess && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 w-[90%] md:w-auto">
-          <i className="fas fa-crown text-yellow-400"></i>
-          <div>
-            <p className="text-sm font-bold">Upgrade Successful!</p>
-            <p className="text-xs text-gray-300">Thank you for subscribing to Lumina.</p>
-          </div>
-        </div>
-      )}
+
 
       {/* Sidebar - Desktop Always Visible */}
       <Sidebar
@@ -304,13 +257,11 @@ const App: React.FC = () => {
             <Dashboard
               meetings={meetings}
               minutesUsed={totalMinutesUsed}
-              minutesLimit={user!.plan === 'team' ? 999999 : user!.plan === 'pro' ? PLAN_LIMITS.pro : PLAN_LIMITS.free}
               onViewMeeting={handleViewMeeting}
               onDeleteMeeting={handleDeleteMeeting}
               onStartRecording={handleStartRecording}
               onFileSelect={handleFileSelect}
               onOpenCalendar={() => navigateTo(AppView.CALENDAR)}
-              userPlan={user?.plan || 'free'}
             />
           )}
 
@@ -332,7 +283,6 @@ const App: React.FC = () => {
           {currentView === AppView.CALENDAR && (
             <CalendarSync
               onBack={() => navigateTo(AppView.DASHBOARD)}
-              userPlan={user?.plan || 'free'}
             />
           )}
 

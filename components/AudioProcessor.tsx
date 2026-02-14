@@ -67,23 +67,39 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
         mimeType = cloudData.mimeType || 'audio/mpeg';
       }
 
+      const isPDF = mimeType === 'application/pdf';
+
       setProgress(40);
-      setStatus("Analyzing with Gemini AI...");
+      setStatus(isPDF ? "Extracting text from PDF..." : "Analyzing with Gemini AI...");
 
       // Use backend API proxy instead of direct Gemini API
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-      const response = await fetch(`${API_URL}/api/gemini/transcribe-audio`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          audioData: base64Data,
-          mimeType: mimeType,
-          fileName: fileName
-        })
-      });
+      let response;
+      if (isPDF) {
+        response = await fetch(`${API_URL}/api/gemini/process-pdf`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileData: base64Data,
+            fileName: fileName
+          })
+        });
+      } else {
+        response = await fetch(`${API_URL}/api/gemini/transcribe-audio`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            audioData: base64Data,
+            mimeType: mimeType,
+            fileName: fileName
+          })
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json();

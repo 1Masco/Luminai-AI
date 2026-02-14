@@ -4,6 +4,7 @@ import { GoogleGenAI, Modality, Type } from '@google/genai';
 const router = express.Router();
 
 // Initialize Gemini AI with API key from environment
+import { extractTextFromPDF } from '../utils/pdfParser.js';
 const getAI = () => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -43,7 +44,7 @@ router.post('/transcribe-audio', async (req, res) => {
         const ai = getAI();
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.0-flash',
             contents: {
                 parts: [
                     {
@@ -112,7 +113,7 @@ router.post('/generate-summary', async (req, res) => {
         const ai = getAI();
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.0-flash',
             contents: `Please summarize this meeting transcript and identify the main sentiment. Provide a concise summary and a few bullet points for action items.
       
       Transcript:
@@ -140,6 +141,81 @@ router.post('/generate-summary', async (req, res) => {
     }
 });
 
+// POST /api/gemini/process-pdf
+// Parse PDF and generate summary
+router.post('/process-pdf', async (req, res) => {
+    try {
+        const { fileData, fileName } = req.body;
+
+        if (!fileData) {
+            return res.status(400).json({ error: 'No file data provided' });
+        }
+
+        // Convert base64 to buffer
+        const buffer = Buffer.from(fileData, 'base64');
+
+        // Extract text from PDF
+        const text = await extractTextFromPDF(buffer);
+
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ error: 'Could not extract text from PDF' });
+        }
+
+        const ai = getAI();
+
+        // Use the same prompt structure as generate-summary but with slightly modified context
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Please analyze this document content and provide a structured meeting summary.
+      
+      Document Content:
+      ${text.substring(0, 30000)} // Limit context window if needed
+      
+      Output JSON format:
+      {
+        "summary": "Full comprehensive summary...",
+        "actionItems": ["item 1", "item 2"],
+        "sentiment": "neutral | positive | negative",
+        "title": "Suggested title based on content",
+        "durationSeconds": 60 // Estimate reading time or defaulting
+      }`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        actionItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] },
+                        title: { type: Type.STRING },
+                        durationSeconds: { type: Type.NUMBER }
+                    }
+                }
+            }
+        });
+
+        const result = JSON.parse(response.text || "{}");
+
+        // Return a format similar to /transcribe-audio so frontend can reuse Meeting structure
+        res.json({
+            title: result.title || fileName.replace(/\.[^/.]+$/, ""),
+            summary: result.summary,
+            actionItems: result.actionItems || [],
+            sentiment: result.sentiment || 'neutral',
+            durationSeconds: result.durationSeconds || 60,
+            transcript: [{
+                speaker: 'Document',
+                text: text.substring(0, 5000) + (text.length > 5000 ? '...' : ''), // Return first 5k chars as "transcript"
+                timestamp: 0
+            }]
+        });
+
+    } catch (error) {
+        console.error('PDF processing error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // POST /api/gemini/chat
 // Chat with AI about meeting content
 router.post('/chat', async (req, res) => {
@@ -153,7 +229,7 @@ router.post('/chat', async (req, res) => {
         const ai = getAI();
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.0-flash',
             contents: `Context: You are an assistant analyzing a meeting recording.
       Transcript: ${transcript}
       

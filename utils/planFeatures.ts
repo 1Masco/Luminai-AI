@@ -8,30 +8,14 @@ export type FeatureKey =
     | 'sharedWorkspaces'
     | 'teamAnalytics';
 
-const featureAccess: Record<FeatureKey, PlanType[]> = {
-    calendarSync: ['pro', 'team'],
-    cloudImport: ['pro', 'team'],
-    advancedSummaries: ['pro', 'team'],
-    teamSharing: ['team'],
-    sharedWorkspaces: ['team'],
-    teamAnalytics: ['team'],
+// All features are free — no gating
+export const canAccessFeature = (_userPlan: PlanType, _feature: FeatureKey): boolean => {
+    return true;
 };
 
-export const canAccessFeature = (userPlan: PlanType, feature: FeatureKey): boolean => {
-    return featureAccess[feature]?.includes(userPlan) ?? true;
-};
-
-export const getMinuteLimit = (userPlan: PlanType): number | null => {
-    switch (userPlan) {
-        case 'free':
-            return 60; // 60 minutes total (lifetime)
-        case 'pro':
-            return 6000; // 6000 minutes per month
-        case 'team':
-            return null; // Unlimited
-        default:
-            return 60;
-    }
+// Unlimited minutes for everyone
+export const getMinuteLimit = (_userPlan: PlanType): number | null => {
+    return null;
 };
 
 export const getPlanDisplayName = (plan: PlanType): string => {

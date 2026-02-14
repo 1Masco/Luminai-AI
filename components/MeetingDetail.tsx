@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Meeting } from '../types';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
+import { jsPDF } from "jspdf";
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -143,6 +144,94 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
     setHasUnsavedChanges(true);
   };
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+
+    let y = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(33, 33, 33);
+    doc.text(meeting.title, margin, y);
+    y += 10;
+
+    // Metadata
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${new Date(meeting.date).toLocaleDateString()} • ${formatTime(meeting.duration)}`, margin, y);
+    y += 15;
+
+    // Summary Section
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235); // Blue
+    doc.text("Executive Summary", margin, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    const summaryLines = doc.splitTextToSize(summary || "No summary available.", contentWidth);
+    doc.text(summaryLines, margin, y);
+    y += (summaryLines.length * 7) + 10;
+
+    // Action Items Section
+    if (actionItems.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+
+      doc.setFontSize(14);
+      doc.setTextColor(22, 163, 74); // Green
+      doc.text("Action Items", margin, y);
+      y += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(60, 60, 60);
+      actionItems.forEach(item => {
+        const itemText = `• ${item}`;
+        const itemLines = doc.splitTextToSize(itemText, contentWidth);
+
+        if (y + (itemLines.length * 7) > 280) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.text(itemLines, margin, y);
+        y += (itemLines.length * 7) + 5;
+      });
+      y += 10;
+    }
+
+    // Chat History (Optional - for context)
+    if (chatHistory.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+
+      doc.setFontSize(14);
+      doc.setTextColor(33, 33, 33);
+      doc.text("Meeting Notes / AI Chat", margin, y);
+      y += 10;
+
+      doc.setFontSize(10);
+      chatHistory.forEach(chat => {
+        const prefix = chat.role === 'user' ? 'You: ' : 'AI: ';
+        const text = prefix + chat.text;
+        const lines = doc.splitTextToSize(text, contentWidth);
+
+        if (y + (lines.length * 6) > 280) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setTextColor(chat.role === 'user' ? 100 : 0, chat.role === 'user' ? 100 : 0, chat.role === 'user' ? 100 : 0);
+        doc.text(lines, margin, y);
+        y += (lines.length * 6) + 5;
+      });
+    }
+
+    // Save
+    doc.save(`${meeting.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+  };
+
   const handleAskAI = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || isAsking) return;
@@ -165,14 +254,18 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
         body: JSON.stringify({ transcript: fullTranscript, question: userMsg })
       });
 
+
       if (!response.ok) {
-        throw new Error('Chat request failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Chat request failed with status ${response.status}`);
       }
 
       const result = await response.json();
       setChatHistory(prev => [...prev, { role: 'ai', text: result.answer || "I'm sorry, I couldn't process that." }]);
-    } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'ai', text: "Error connecting to AI. Please try again." }]);
+    } catch (err: any) {
+      console.error('AI Chat Error:', err);
+      const errorMessage = err.message || "Error connecting to AI. Please try again.";
+      setChatHistory(prev => [...prev, { role: 'ai', text: `Error: ${errorMessage}` }]);
     } finally {
       setIsAsking(false);
     }
@@ -234,8 +327,8 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                       <button
                         onClick={() => setSharePermission('view')}
                         className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'view'
-                            ? 'border-blue-500 bg-blue-50 text-blue-600'
-                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
                           }`}
                       >
                         <i className="fas fa-eye mr-2"></i>View Only
@@ -243,8 +336,8 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                       <button
                         onClick={() => setSharePermission('comment')}
                         className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'comment'
-                            ? 'border-blue-500 bg-blue-50 text-blue-600'
-                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
                           }`}
                       >
                         <i className="fas fa-comment mr-2"></i>Comment
@@ -296,6 +389,14 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleDownloadPDF}
+            className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+          >
+            <i className="fas fa-file-pdf md:mr-2 text-red-500"></i>
+            <span className="hidden md:inline">Download PDF</span>
+          </button>
+
           {hasUnsavedChanges && (
             <button
               onClick={handleSaveChanges}
@@ -491,7 +592,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           </form>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
