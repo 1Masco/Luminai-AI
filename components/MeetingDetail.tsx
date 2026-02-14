@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Meeting } from '../types';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
-import { jsPDF } from "jspdf";
+import { exportSummaryAsPDF, exportTranscriptAsPDF, exportFullReportAsPDF } from '../utils/pdfExport';
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -26,6 +26,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   const [sharePermission, setSharePermission] = useState<'view' | 'comment'>('view');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState('');
+  const [showPDFMenu, setShowPDFMenu] = useState(false);
 
   useEffect(() => {
     setSummary(meeting.summary || "");
@@ -145,91 +146,23 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   };
 
   const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const contentWidth = pageWidth - (margin * 2);
+    // Keep original for backward compatibility
+    exportFullReportAsPDF(meeting);
+  };
 
-    let y = 20;
+  const handleExportSummary = () => {
+    exportSummaryAsPDF(meeting);
+    setShowPDFMenu(false);
+  };
 
-    // Title
-    doc.setFontSize(20);
-    doc.setTextColor(33, 33, 33);
-    doc.text(meeting.title, margin, y);
-    y += 10;
+  const handleExportTranscript = () => {
+    exportTranscriptAsPDF(meeting);
+    setShowPDFMenu(false);
+  };
 
-    // Metadata
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`${new Date(meeting.date).toLocaleDateString()} • ${formatTime(meeting.duration)}`, margin, y);
-    y += 15;
-
-    // Summary Section
-    doc.setFontSize(14);
-    doc.setTextColor(37, 99, 235); // Blue
-    doc.text("Executive Summary", margin, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    doc.setTextColor(60, 60, 60);
-    const summaryLines = doc.splitTextToSize(summary || "No summary available.", contentWidth);
-    doc.text(summaryLines, margin, y);
-    y += (summaryLines.length * 7) + 10;
-
-    // Action Items Section
-    if (actionItems.length > 0) {
-      if (y > 250) { doc.addPage(); y = 20; }
-
-      doc.setFontSize(14);
-      doc.setTextColor(22, 163, 74); // Green
-      doc.text("Action Items", margin, y);
-      y += 10;
-
-      doc.setFontSize(11);
-      doc.setTextColor(60, 60, 60);
-      actionItems.forEach(item => {
-        const itemText = `• ${item}`;
-        const itemLines = doc.splitTextToSize(itemText, contentWidth);
-
-        if (y + (itemLines.length * 7) > 280) {
-          doc.addPage();
-          y = 20;
-        }
-
-        doc.text(itemLines, margin, y);
-        y += (itemLines.length * 7) + 5;
-      });
-      y += 10;
-    }
-
-    // Chat History (Optional - for context)
-    if (chatHistory.length > 0) {
-      if (y > 250) { doc.addPage(); y = 20; }
-
-      doc.setFontSize(14);
-      doc.setTextColor(33, 33, 33);
-      doc.text("Meeting Notes / AI Chat", margin, y);
-      y += 10;
-
-      doc.setFontSize(10);
-      chatHistory.forEach(chat => {
-        const prefix = chat.role === 'user' ? 'You: ' : 'AI: ';
-        const text = prefix + chat.text;
-        const lines = doc.splitTextToSize(text, contentWidth);
-
-        if (y + (lines.length * 6) > 280) {
-          doc.addPage();
-          y = 20;
-        }
-
-        doc.setTextColor(chat.role === 'user' ? 100 : 0, chat.role === 'user' ? 100 : 0, chat.role === 'user' ? 100 : 0);
-        doc.text(lines, margin, y);
-        y += (lines.length * 6) + 5;
-      });
-    }
-
-    // Save
-    doc.save(`${meeting.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+  const handleExportFullReport = () => {
+    exportFullReportAsPDF(meeting);
+    setShowPDFMenu(false);
   };
 
   const handleAskAI = async (e: React.FormEvent) => {
@@ -389,13 +322,51 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleDownloadPDF}
-            className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
-          >
-            <i className="fas fa-file-pdf md:mr-2 text-red-500"></i>
-            <span className="hidden md:inline">Download PDF</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowPDFMenu(!showPDFMenu)}
+              className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 flex items-center gap-2"
+            >
+              <i className="fas fa-file-pdf text-red-500"></i>
+              <span className="hidden md:inline">Export PDF</span>
+              <i className={`fas fa-chevron-down text-xs transition-transform ${showPDFMenu ? 'rotate-180' : ''}`}></i>
+            </button>
+
+            {showPDFMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-40">
+                <button
+                  onClick={handleExportSummary}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-sm text-gray-700 flex items-center gap-3"
+                >
+                  <i className="fas fa-file-lines text-blue-500"></i>
+                  <div>
+                    <p className="font-semibold text-gray-900">Summary Only</p>
+                    <p className="text-xs text-gray-500">Export meeting summary and action items</p>
+                  </div>
+                </button>
+                <button
+                  onClick={handleExportTranscript}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-sm text-gray-700 flex items-center gap-3"
+                >
+                  <i className="fas fa-quote-left text-green-500"></i>
+                  <div>
+                    <p className="font-semibold text-gray-900">Transcript Only</p>
+                    <p className="text-xs text-gray-500">Export full meeting transcript</p>
+                  </div>
+                </button>
+                <button
+                  onClick={handleExportFullReport}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3"
+                >
+                  <i className="fas fa-book text-purple-500"></i>
+                  <div>
+                    <p className="font-semibold text-gray-900">Full Report</p>
+                    <p className="text-xs text-gray-500">Summary + transcript + notes</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           {hasUnsavedChanges && (
             <button

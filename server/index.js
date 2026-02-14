@@ -2,7 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import requestId from 'express-request-id';
 import dotenv from 'dotenv';
+import logger from './logger/winston.config.js';
+import { errorHandler, notFoundHandler } from './errors/errorHandler.js';
 import geminiRoutes from './routes/gemini.js';
 import authRoutes from './routes/auth.js';
 import notesRoutes from './routes/notes.js';
@@ -19,6 +22,39 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
+
+// Request ID middleware - for request tracing
+app.use(requestId());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  const { method, path, ip } = req;
+  const requestIdValue = req.id;
+
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    const { statusCode } = res;
+
+    const logData = {
+      requestId: requestIdValue,
+      method,
+      path,
+      statusCode,
+      duration: `${duration}ms`,
+      ip,
+    };
+
+    // Log successful requests as info, errors as error
+    if (statusCode >= 400) {
+      logger.warn('HTTP request', logData);
+    } else {
+      logger.info('HTTP request', logData);
+    }
+  });
+
+  next();
+});
 
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'];
@@ -66,27 +102,17 @@ app.use('/api/cloud', cloudRoutes);
 app.use('/api/sharing', sharingRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
+// 404 handler - must be BEFORE global error handler
+app.use(notFoundHandler);
 
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({ error: 'CORS error: Origin not allowed' });
-  }
-
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// Global error handler - must be LAST
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Luminai-AI server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔒 CORS enabled for: ${allowedOrigins.join(', ')}`);
+  logger.info(`Luminai-AI server started`, {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    corsOrigins: allowedOrigins,
+  });
 });

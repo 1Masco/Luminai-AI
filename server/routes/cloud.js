@@ -1,7 +1,9 @@
 import express from 'express';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { validateRequest } from '../validation/middleware.js';
+import { CloudDownloadInputSchema } from '../validation/schemas.js';
+import { asyncHandler } from '../errors/errorHandler.js';
+import { AppError, AppErrors } from '../errors/AppError.js';
+import logger from '../logger/winston.config.js';
 
 const router = express.Router();
 
@@ -13,87 +15,97 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
  * Download a file from Google Drive or Dropbox and return as base64
  * Body: { url: string, source: 'google_drive' | 'dropbox', fileName?: string }
  */
-router.post('/download', async (req, res) => {
+router.post(
+  '/download',
+  validateRequest(CloudDownloadInputSchema),
+  asyncHandler(async (req, res) => {
+    const { url, source, fileName } = req.body;
+
+    logger.info('Cloud download request', { source, fileName: fileName || 'unknown', requestId: req.id });
+
+    let downloadUrl = url;
+
+    // For Google Drive, convert to direct download URL
+    if (source === 'google_drive') {
+      // Extract file ID from various Google Drive URL formats
+      let fileId = null;
+      const patterns = [
+        /\/file\/d\/([a-zA-Z0-9_-]+)/,
+        /id=([a-zA-Z0-9_-]+)/,
+        /\/d\/([a-zA-Z0-9_-]+)/
+      ];
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+          fileId = match[1];
+          break;
+        }
+      }
+
+      if (fileId) {
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (apiKey) {
+          downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+        } else {
+          downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
+      }
+    }
+    // Dropbox Chooser already provides a direct download link (dl=1)
+
     try {
-        const { url, source, fileName } = req.body;
-
-        if (!url || !source) {
-            return res.status(400).json({ error: 'Missing url or source parameter' });
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'User-Agent': 'LuminaAI/1.0'
         }
+      });
 
-        let downloadUrl = url;
+      if (!response.ok) {
+        logger.warn('Download failed with status', { status: response.status, source, requestId: req.id });
+        throw AppErrors.EXTERNAL_SERVICE_ERROR('Cloud Storage');
+      }
 
-        // For Google Drive, convert to direct download URL
-        if (source === 'google_drive') {
-            // Extract file ID from various Google Drive URL formats
-            let fileId = null;
-            const patterns = [
-                /\/file\/d\/([a-zA-Z0-9_-]+)/,
-                /id=([a-zA-Z0-9_-]+)/,
-                /\/d\/([a-zA-Z0-9_-]+)/
-            ];
-            for (const pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) {
-                    fileId = match[1];
-                    break;
-                }
-            }
+      // Check content length
+      const contentLength = parseInt(response.headers.get('content-length') || '0');
+      if (contentLength > MAX_FILE_SIZE) {
+        logger.warn('File too large', { contentLength, maxSize: MAX_FILE_SIZE, requestId: req.id });
+        throw new AppError(`File exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`, 413, 'FILE_TOO_LARGE');
+      }
 
-            if (fileId) {
-                const apiKey = process.env.GOOGLE_API_KEY;
-                if (apiKey) {
-                    downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
-                } else {
-                    downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                }
-            }
-        }
-        // Dropbox Chooser already provides a direct download link (dl=1)
+      const contentType = response.headers.get('content-type') || 'audio/mpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-        console.log(`☁️ Downloading from ${source}: ${fileName || 'unknown'}`);
+      // Double-check actual size
+      if (buffer.length > MAX_FILE_SIZE) {
+        logger.warn('File too large after download', { actualSize: buffer.length, maxSize: MAX_FILE_SIZE, requestId: req.id });
+        throw new AppError(`File exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`, 413, 'FILE_TOO_LARGE');
+      }
 
-        const response = await fetch(downloadUrl, {
-            headers: {
-                'User-Agent': 'LuminaAI/1.0'
-            }
-        });
+      const base64Data = buffer.toString('base64');
 
-        if (!response.ok) {
-            console.error(`Download failed: ${response.status} ${response.statusText}`);
-            return res.status(502).json({ error: `Failed to download file from ${source}: ${response.statusText}` });
-        }
+      logger.info('Download successful', {
+        source,
+        fileName: fileName || 'unknown',
+        fileSize: `${(buffer.length / 1024 / 1024).toFixed(2)}MB`,
+        requestId: req.id
+      });
 
-        // Check content length
-        const contentLength = parseInt(response.headers.get('content-length') || '0');
-        if (contentLength > MAX_FILE_SIZE) {
-            return res.status(413).json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` });
-        }
-
-        const contentType = response.headers.get('content-type') || 'audio/mpeg';
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Double-check actual size
-        if (buffer.length > MAX_FILE_SIZE) {
-            return res.status(413).json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` });
-        }
-
-        const base64Data = buffer.toString('base64');
-
-        console.log(`✅ Downloaded ${(buffer.length / 1024 / 1024).toFixed(2)}MB from ${source}`);
-
-        res.json({
-            base64Data,
-            mimeType: contentType,
-            fileName: fileName || 'cloud_recording',
-            fileSize: buffer.length
-        });
+      res.json({
+        base64Data,
+        mimeType: contentType,
+        fileName: fileName || 'cloud_recording',
+        fileSize: buffer.length
+      });
 
     } catch (error) {
-        console.error('Cloud download error:', error);
-        res.status(500).json({ error: 'Failed to download file from cloud storage' });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      logger.error('Cloud download error', { source, error: error.message, requestId: req.id });
+      throw AppErrors.EXTERNAL_SERVICE_ERROR('Cloud Storage');
     }
-});
+  })
+);
 
 export default router;

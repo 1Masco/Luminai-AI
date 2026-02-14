@@ -104,7 +104,7 @@ const App: React.FC = () => {
     setIsAuthenticated(true);
     localStorage.setItem('lumina_user', JSON.stringify(profile));
     localStorage.setItem('lumina_auth', 'true');
-  };;
+  };
 
   useEffect(() => {
     if (meetings.length > 0) localStorage.setItem('lumina_meetings', JSON.stringify(meetings));
