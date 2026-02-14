@@ -3,15 +3,11 @@
  * Allows standardized error handling across the application
  */
 export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly code: string;
-  public readonly isOperational: boolean;
-
   constructor(
-    message: string,
-    statusCode: number = 500,
-    code: string = 'INTERNAL_ERROR',
-    isOperational: boolean = true
+    message,
+    statusCode = 500,
+    code = 'INTERNAL_ERROR',
+    isOperational = true
   ) {
     super(message);
 
@@ -53,17 +49,17 @@ export const AppErrors = {
     new AppError('Permission denied', 403, 'AUTH_PERMISSION_DENIED'),
 
   // Validation errors
-  INVALID_INPUT: (field: string) =>
+  INVALID_INPUT: (field) =>
     new AppError(`Invalid input: ${field}`, 400, 'VALIDATION_INVALID_INPUT'),
-  MISSING_REQUIRED_FIELD: (field: string) =>
+  MISSING_REQUIRED_FIELD: (field) =>
     new AppError(`Missing required field: ${field}`, 400, 'VALIDATION_MISSING_FIELD'),
   EMAIL_ALREADY_EXISTS: () =>
     new AppError('Email already registered', 409, 'VALIDATION_EMAIL_EXISTS'),
 
   // Resource errors
-  NOT_FOUND: (resource: string) =>
+  NOT_FOUND: (resource) =>
     new AppError(`${resource} not found`, 404, 'NOT_FOUND'),
-  ALREADY_EXISTS: (resource: string) =>
+  ALREADY_EXISTS: (resource) =>
     new AppError(`${resource} already exists`, 409, 'ALREADY_EXISTS'),
 
   // Processing errors
@@ -75,7 +71,7 @@ export const AppErrors = {
     new AppError('Failed to process PDF', 500, 'PROCESSING_PDF_FAILED'),
 
   // External service errors
-  EXTERNAL_SERVICE_ERROR: (service: string) =>
+  EXTERNAL_SERVICE_ERROR: (service) =>
     new AppError(`${service} service error`, 502, 'EXTERNAL_SERVICE_ERROR'),
   API_RATE_LIMITED: () =>
     new AppError('API rate limit exceeded', 429, 'RATE_LIMIT_EXCEEDED'),

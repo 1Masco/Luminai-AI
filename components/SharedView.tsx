@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Meeting } from '../types';
-import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 
 interface SharedItem {
@@ -36,6 +36,7 @@ const SharedView: React.FC<SharedViewProps> = ({ onViewMeeting }) => {
       setIsLoading(true);
       setError(null);
 
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
@@ -59,6 +60,8 @@ const SharedView: React.FC<SharedViewProps> = ({ onViewMeeting }) => {
 
   const handleRemoveShare = async (shareId: string) => {
     try {
+      if (!isSupabaseConfigured()) return;
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
@@ -76,6 +79,8 @@ const SharedView: React.FC<SharedViewProps> = ({ onViewMeeting }) => {
 
     // Mark as viewed
     try {
+      if (!isSupabaseConfigured()) return;
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token && !item.viewedAt) {
         await apiService.markSharedViewed(session.access_token, item.shareId);

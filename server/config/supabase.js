@@ -12,10 +12,13 @@ if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
 }
 
+const fallbackUrl = 'http://localhost';
+const fallbackServiceKey = 'local-dev-placeholder-key';
+
 // Create Supabase client with service role key for server-side operations
 export const supabase = createClient(
-    supabaseUrl || '',
-    supabaseServiceKey || '',
+    supabaseUrl || fallbackUrl,
+    supabaseServiceKey || fallbackServiceKey,
     {
         auth: {
             autoRefreshToken: false,

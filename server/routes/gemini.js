@@ -14,6 +14,28 @@ import { extractTextFromPDF } from '../utils/pdfParser.js';
 
 const router = express.Router();
 
+const mapGeminiError = (error, fallbackMessage, fallbackCode = 'GEMINI_ERROR') => {
+  const message = error?.message || '';
+
+  if (message.includes('RESOURCE_EXHAUSTED') || message.includes('"code":429')) {
+    return new AppError(
+      'Gemini quota exceeded. Check your plan/billing and retry later.',
+      429,
+      'GEMINI_QUOTA_EXCEEDED'
+    );
+  }
+
+  if (message.includes('"code":401') || message.toLowerCase().includes('api key not valid')) {
+    return new AppError(
+      'Gemini API key is invalid or unauthorized.',
+      401,
+      'GEMINI_AUTH_ERROR'
+    );
+  }
+
+  return new AppError(fallbackMessage, 502, fallbackCode);
+};
+
 /**
  * Initialize Gemini AI with API key from environment
  * @throws {AppError} If GEMINI_API_KEY is not configured
@@ -131,7 +153,7 @@ router.post(
         throw new AppError('Invalid transcription response', 502, 'GEMINI_INVALID_RESPONSE');
       }
       logger.error('Transcription error', { error: error.message, requestId: req.id });
-      throw AppErrors.EXTERNAL_SERVICE_ERROR('Gemini');
+      throw mapGeminiError(error, 'Gemini transcription failed', 'GEMINI_TRANSCRIPTION_ERROR');
     }
   })
 );
@@ -184,7 +206,7 @@ ${transcript}`,
         throw new AppError('Invalid summary response', 502, 'GEMINI_INVALID_RESPONSE');
       }
       logger.error('Summary generation error', { error: error.message, requestId: req.id });
-      throw AppErrors.EXTERNAL_SERVICE_ERROR('Gemini');
+      throw mapGeminiError(error, 'Gemini summary generation failed', 'GEMINI_SUMMARY_ERROR');
     }
   })
 );
@@ -198,32 +220,100 @@ router.post(
   '/process-pdf',
   validateRequest(ProcessPDFInputSchema),
   asyncHandler(async (req, res) => {
-    const { filePath, fileName } = req.body;
+    const { fileData, fileName } = req.body;
 
     logger.info('PDF processing request', { fileName, requestId: req.id });
 
     try {
-      // Note: In production, you'd read the file from filePath
-      // For now, this is a placeholder
-      const ai = getAI();
+      let pdfBuffer;
+      try {
+        pdfBuffer = Buffer.from(fileData, 'base64');
+      } catch (err) {
+        throw new AppError('Invalid PDF payload', 400, 'INVALID_PDF_PAYLOAD');
+      }
 
-      // Mock response for PDF processing
+      const extractedTextRaw = await extractTextFromPDF(pdfBuffer);
+      const extractedText = (extractedTextRaw || '').replace(/\u0000/g, '').trim();
+
+      if (!extractedText) {
+        throw new AppError('No readable text found in PDF', 422, 'PDF_NO_TEXT');
+      }
+
+      const transcriptChunks = extractedText
+        .split(/\r?\n\s*\r?\n+/)
+        .map((chunk) => chunk.replace(/\s+/g, ' ').trim())
+        .filter((chunk) => chunk && !/^--\s*\d+\s+of\s+\d+\s*--$/i.test(chunk));
+
+      const transcript = (transcriptChunks.length > 0 ? transcriptChunks : [extractedText])
+        .slice(0, 300)
+        .map((text, index) => ({
+          speaker: 'Document',
+          text,
+          timestamp: index * 30,
+        }));
+
+      const words = extractedText.split(/\s+/).filter(Boolean).length;
+      const durationSeconds = Math.max(60, Math.ceil((words / 180) * 60));
+      const title = fileName.replace(/\.[^/.]+$/, '');
+
+      // Always return useful output even when Gemini isn't configured.
+      let summary = transcript.slice(0, 3).map((t) => t.text).join(' ').slice(0, 1200);
+      let actionItems = [];
+      let sentiment = 'neutral';
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (apiKey) {
+        try {
+          const ai = getAI();
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Analyze this PDF text and return a concise JSON summary.
+
+Text:
+${extractedText.slice(0, 120000)}`,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  summary: { type: Type.STRING },
+                  actionItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] },
+                },
+              },
+            },
+          });
+
+          const aiResult = JSON.parse(response.text || '{}');
+          if (aiResult.summary) summary = aiResult.summary;
+          if (Array.isArray(aiResult.actionItems)) actionItems = aiResult.actionItems;
+          if (['positive', 'neutral', 'negative'].includes(aiResult.sentiment)) {
+            sentiment = aiResult.sentiment;
+          }
+        } catch (aiError) {
+          logger.warn('Gemini summary failed for PDF, using fallback summary', {
+            requestId: req.id,
+            fileName,
+            error: aiError.message,
+          });
+        }
+      }
+
       res.json({
-        title: fileName.replace(/\.[^/.]+$/, ''),
-        summary: 'PDF processing would extract and summarize the content here.',
-        actionItems: [],
-        sentiment: 'neutral',
-        durationSeconds: 60,
-        transcript: [
-          {
-            speaker: 'Document',
-            text: 'PDF content extracted would appear here.',
-            timestamp: 0,
-          },
-        ],
+        title,
+        summary,
+        actionItems,
+        sentiment,
+        durationSeconds,
+        transcript,
       });
 
-      logger.info('PDF processed', { fileName, requestId: req.id });
+      logger.info('PDF processed', {
+        fileName,
+        requestId: req.id,
+        transcriptChunks: transcript.length,
+        usedGemini: Boolean(apiKey),
+      });
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('PDF processing error', { fileName, error: error.message, requestId: req.id });
@@ -268,7 +358,7 @@ User Question: ${question}`,
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Chat error', { error: error.message, requestId: req.id });
-      throw AppErrors.EXTERNAL_SERVICE_ERROR('Gemini');
+      throw mapGeminiError(error, 'Gemini chat failed', 'GEMINI_CHAT_ERROR');
     }
   })
 );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent } from '../types';
-import { supabase } from '../utils/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 
 interface CalendarSyncProps {
@@ -20,7 +20,13 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
   }, []);
 
   const loadUserData = async () => {
+    if (!isSupabaseConfigured()) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      const supabase = getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsLoading(false);
@@ -67,6 +73,8 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
 
   const fetchCalendarEvents = async () => {
     try {
+      if (!isSupabaseConfigured()) return;
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
@@ -79,6 +87,11 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
 
   const handleConnectGoogle = async () => {
     try {
+      if (!isSupabaseConfigured()) {
+        alert('Supabase is not configured');
+        return;
+      }
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in first');
@@ -95,6 +108,11 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
 
   const handleConnectOutlook = async () => {
     try {
+      if (!isSupabaseConfigured()) {
+        alert('Supabase is not configured');
+        return;
+      }
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in first');
@@ -115,6 +133,8 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
     }
 
     try {
+      if (!isSupabaseConfigured()) return;
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 

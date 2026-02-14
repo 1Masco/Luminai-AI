@@ -12,7 +12,7 @@ import SharedView from './components/SharedView';
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import BottomNav from './components/BottomNav';
-import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -44,6 +44,7 @@ const App: React.FC = () => {
       }
       return;
     }
+    const supabase = getSupabaseClient();
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -70,6 +71,7 @@ const App: React.FC = () => {
 
   // Helper to build UserProfile from Supabase user
   const hydrateUser = async (supabaseUser: any) => {
+    const supabase = getSupabaseClient();
     let profile: UserProfile = {
       name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
       email: supabaseUser.email || '',
@@ -188,6 +190,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
       await supabase.auth.signOut();
     }
     setIsAuthenticated(false);

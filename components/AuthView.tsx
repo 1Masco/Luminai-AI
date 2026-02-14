@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 
 interface AuthViewProps {
   onLogin: (user: UserProfile) => void;
@@ -40,6 +40,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
 
     try {
       setIsLoading(true);
+      const supabase = getSupabaseClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -82,6 +83,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
+      const supabase = getSupabaseClient();
       if (mode === 'signup') {
         // Sign up with email/password
         const { data, error } = await supabase.auth.signUp({
@@ -145,6 +147,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
+      const supabase = getSupabaseClient();
       if (mode === 'phone') {
         // Send OTP
         const { error } = await supabase.auth.signInWithOtp({

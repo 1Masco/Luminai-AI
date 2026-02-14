@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express';
 import logger from '../logger/winston.config.js';
 import AppError from './AppError.js';
 
@@ -6,12 +5,7 @@ import AppError from './AppError.js';
  * Global error handling middleware
  * Must be defined LAST, after all other middleware and routes
  */
-export const errorHandler = (
-  err: Error | AppError,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const errorHandler = (err, req, res, next) => {
   const requestId = req.id;
 
   // Handle known operational errors
@@ -69,8 +63,8 @@ export const errorHandler = (
  * Async error wrapper for Express route handlers
  * Catches promise rejections and passes them to error handler
  */
-export const asyncHandler = (fn: Function) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const asyncHandler = (fn) => {
+  return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
@@ -78,11 +72,7 @@ export const asyncHandler = (fn: Function) => {
 /**
  * 404 handler - must be added AFTER all routes
  */
-export const notFoundHandler = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const notFoundHandler = (req, res, next) => {
   const error = new AppError(
     `Route not found: ${req.method} ${req.path}`,
     404,

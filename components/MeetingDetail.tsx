@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Meeting } from '../types';
-import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 import { exportSummaryAsPDF, exportTranscriptAsPDF, exportFullReportAsPDF } from '../utils/pdfExport';
 
@@ -102,6 +102,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
     setIsSharing(true);
     try {
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         alert('Please sign in to share meetings.');
