@@ -72,7 +72,7 @@ export const ShareMeetingInputSchema = z.object({
   permission: z.enum(['view', 'comment']).default('view'),
 });
 
-// Gemini AI Schemas
+// AI Schemas
 export const TranscribeAudioInputSchema = z.object({
   audioData: z.string().min(1, 'Audio data is required'),
   mimeType: z.string().regex(/^audio\//, 'Invalid audio mime type'),
@@ -87,8 +87,12 @@ export const ChatInputSchema = z.object({
   question: z.string().min(1, 'Question cannot be empty').max(1000, 'Question too long'),
 });
 
+export const RefineNoteInputSchema = z.object({
+  content: z.string().min(1, 'Content is required').max(50000, 'Content is too long'),
+});
+
 export const ProcessPDFInputSchema = z.object({
-  filePath: z.string().min(1, 'File path is required'),
+  fileData: z.string().min(1, 'File data is required'),
   fileName: z.string().min(1, 'File name is required'),
 });
 
@@ -150,6 +154,7 @@ export type ShareMeetingInput = z.infer<typeof ShareMeetingInputSchema>;
 export type TranscribeAudioInput = z.infer<typeof TranscribeAudioInputSchema>;
 export type GenerateSummaryInput = z.infer<typeof GenerateSummaryInputSchema>;
 export type ChatInput = z.infer<typeof ChatInputSchema>;
+export type RefineNoteInput = z.infer<typeof RefineNoteInputSchema>;
 export type CloudDownloadInput = z.infer<typeof CloudDownloadInputSchema>;
 export type DisconnectCalendarInput = z.infer<typeof DisconnectCalendarInputSchema>;
 export type DisconnectCalendarParams = z.infer<typeof DisconnectCalendarParamsSchema>;

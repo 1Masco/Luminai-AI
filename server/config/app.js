@@ -23,9 +23,23 @@ const config = {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
 
-  // Gemini AI
+  // OpenAI
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    chatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
+    transcriptionModel: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
+  },
+
+  // Gemini provider
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  },
+
+  // AI provider selection
+  ai: {
+    providerMode: process.env.AI_PROVIDER_MODE || 'balanced',
+    providerCooldownMs: parseInt(process.env.AI_PROVIDER_COOLDOWN_MS, 10) || 600000,
   },
 
   // Google OAuth
@@ -51,11 +65,15 @@ const config = {
 };
 
 // Validate required configuration
-const requiredConfigs = ['supabase.url', 'supabase.serviceRoleKey', 'gemini.apiKey'];
+const requiredConfigs = ['supabase.url', 'supabase.serviceRoleKey'];
 const missingConfigs = requiredConfigs.filter(configPath => {
   const value = configPath.split('.').reduce((obj, key) => obj?.[key], config);
   return !value;
 });
+
+if (!config.openai.apiKey && !config.gemini.apiKey) {
+  missingConfigs.push('openai.apiKey|gemini.apiKey');
+}
 
 if (missingConfigs.length > 0) {
   logger.warn('Missing configuration values', { missingConfigs });

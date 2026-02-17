@@ -270,7 +270,7 @@ export const importMeetingFromPDF = async (file: File): Promise<any> => {
   formData.append('file', file);
 
   try {
-    const response = await fetch('/api/gemini/process-pdf', {
+    const response = await fetch('/api/ai/process-pdf', {
       method: 'POST',
       body: formData,
     });

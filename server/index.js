@@ -6,7 +6,7 @@ import requestId from 'express-request-id';
 import dotenv from 'dotenv';
 import logger from './logger/winston.config.js';
 import { errorHandler, notFoundHandler } from './errors/errorHandler.js';
-import geminiRoutes from './routes/gemini.js';
+import aiRoutes from './routes/ai.js';
 import authRoutes from './routes/auth.js';
 import notesRoutes from './routes/notes.js';
 import meetingsRoutes from './routes/meetings.js';
@@ -97,8 +97,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Root endpoint for manual browser checks.
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Luminai-AI Backend',
+    status: 'ok',
+    message: 'Backend is running. Use frontend on http://localhost:3000.',
+    endpoints: {
+      health: '/health',
+      ai: '/api/ai',
+      auth: '/api/auth',
+      meetings: '/api/meetings',
+      notes: '/api/notes',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // API routes
-app.use('/api/gemini', geminiRoutes);
+app.use('/api/ai', aiRoutes);
+// Backward-compatible alias for older clients.
+app.use('/api/gemini', aiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/meetings', meetingsRoutes);

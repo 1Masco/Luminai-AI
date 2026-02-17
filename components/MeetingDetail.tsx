@@ -47,7 +47,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
       // Use backend API proxy
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/gemini/generate-summary`, {
+      const response = await fetch(`${API_URL}/api/ai/generate-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +180,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
       // Use backend API proxy
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/gemini/chat`, {
+      const response = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -434,7 +434,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                 {isGeneratingSummary ? (
                   <div className="flex flex-col items-center justify-center py-20">
                     <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                    <p className="text-sm text-gray-500 font-medium">Gemini is analyzing...</p>
+                    <p className="text-sm text-gray-500 font-medium">AI is analyzing...</p>
                   </div>
                 ) : (
                   <div className="space-y-4 md:space-y-6">

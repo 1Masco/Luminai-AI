@@ -1,148 +1,68 @@
-# Luminai-AI Security & Backend Setup
+# Luminai-AI Backend Setup
 
-This update secures your Gemini API key by moving it to a backend server proxy.
+This app uses a backend proxy so your OpenAI key is never exposed in the browser.
 
 ## What Changed
 
-### 🔒 Security Improvements
-- **API Key Protection**: Gemini API key now stored on backend server (never exposed to clients)
-- **Rate Limiting**: Prevents API abuse with configurable request limits
-- **CORS Protection**: Controls which origins can access your API
+- AI provider is OpenAI (ChatGPT API) instead of Gemini.
+- Frontend AI features call backend endpoints under `/api/ai/*`.
+- Backend handles transcription, summaries, chat, PDF analysis, and note refinement.
 
-### 🏗️ New Backend Server
-Located in `/server` directory:
-- **Express server** with security middleware (Helmet, CORS)
-- **Proxy endpoints** for all Gemini API calls
-- **Environment-based configuration**
-
-### 📝 Updated Components
-- `AudioProcessor.tsx` - Uses backend proxy for transcription
-- `MeetingDetail.tsx` - Uses backend proxy for summaries and AI chat
-- Added `utils/apiService.ts` for consistent API access
-
----
-
-## Setup Instructions
-
-### 1. Install Dependencies
+## Install
 
 ```bash
-# Install frontend dependencies
 npm install
-
-# Install backend dependencies
 npm run server:install
 ```
 
-### 2. Configure Environment Variables
+## Configure Environment
 
-#### Backend Server (IMPORTANT!)
-
-Edit `server/.env` and add your Gemini API key:
+1. Copy `server/.env.example` to `server/.env`.
+2. Set your key:
 
 ```env
-GEMINI_API_KEY=your_actual_gemini_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-> **Get your API key**: https://aistudio.google.com/app/apikey
+Optional model overrides:
 
-The frontend `.env.local` is already configured for local development.
+```env
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_TRANSCRIPTION_MODEL=whisper-1
+```
 
-### 3. Run the Application
+Optional Gemini fallback (recommended):
 
-#### Option A: Run Both Together (Recommended)
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+## Run
+
 ```bash
 npm run dev:all
 ```
 
-This starts:
-- Frontend on http://localhost:5173
-- Backend on http://localhost:3001
-
-#### Option B: Run Separately
-Terminal 1 (Frontend):
-```bash
-npm run dev
-```
-
-Terminal 2 (Backend):
-```bash
-npm run dev:server
-```
-
----
-
-## How It Works
-
-### Before (Insecure)
-```
-Browser → Gemini API (with exposed key)
-```
-
-### After (Secure)
-```
-Browser → Backend Server → Gemini API (key secure on server)
-```
-
-### API Flow Example:
-
-1. **User uploads audio file**
-2. **Frontend** sends base64 data to `/api/gemini/transcribe-audio`
-3. **Backend** validates request, calls Gemini API with secure key
-4. **Backend** returns transcription to frontend
-5. **Frontend** displays results
-
----
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3001`
 
 ## API Endpoints
 
-All endpoints: `http://localhost:3001/api/gemini/...`
+Base URL: `http://localhost:3001/api/ai`
 
-- `POST /transcribe-audio` - Transcribe audio files
-- `POST /generate-summary` - Generate meeting summaries
-- `POST /chat` - Chat with AI about meetings
-- `GET /health` - Health check
+- `POST /transcribe-audio`
+- `POST /generate-summary`
+- `POST /chat`
+- `POST /process-pdf`
+- `POST /refine-note`
 
----
+Backward compatibility:
+- `/api/gemini/*` remains available as an alias.
 
 ## Troubleshooting
 
-### Backend won't start
-- **Check**: Did you add `GEMINI_API_KEY` to `server/.env`?
-- **Check**: Did you run `npm run server:install`?
-
-### Frontend can't connect to backend
-- **Check**: Is backend running on port 3001?
-- **Check**: CORS origins in `server/.env` match your frontend URL
-
-### "Cannot find module" errors
-- **Fix**: Run `npm install` (frontend) and `npm run server:install` (backend)
-
----
-
-## Next Steps
-
-✅ **Current**: API key is secure on backend
-📋 **Recommended Next**:
-1. Set up real authentication (Firebase/Supabase)
-2. Add database for persistent storage
-3. Deploy to production (separate frontend/backend)
-
-See `implementation_plan.md` for full roadmap.
-
----
-
-## Production Deployment
-
-When deploying:
-
-1. **Backend**: Deploy to a Node.js host (Render, Railway, Heroku)
-2. **Frontend**: Update `.env.production` with backend URL:
-   ```env
-   VITE_API_URL=https://your-backend-domain.com
-   ```
-3. **Environment**: Set `GEMINI_API_KEY` in backend hosting environment variables
-
----
-
-Need help? Check the full assessment in `implementation_plan.md`
+- `OpenAI API not configured`: set `OPENAI_API_KEY` in `server/.env`.
+- `401` from AI endpoints: key is invalid or missing permissions.
+- `429` from AI endpoints: rate limit or quota reached.
+- Frontend cannot reach backend: verify `VITE_API_URL` and backend is running on port `3001`.

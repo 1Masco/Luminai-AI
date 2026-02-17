@@ -12,6 +12,7 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Preparing file...");
   const [error, setError] = useState<string | null>(null);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
     processAudio();
@@ -27,6 +28,36 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
       };
       reader.onerror = (error) => reject(error);
     });
+  };
+
+  const getErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+    const statusHint = ` (HTTP ${response.status})`;
+
+    let rawBody = '';
+    try {
+      rawBody = await response.text();
+    } catch (_error) {
+      return `${fallback}${statusHint}`;
+    }
+
+    if (!rawBody) {
+      return `${fallback}${statusHint}`;
+    }
+
+    try {
+      const parsed = JSON.parse(rawBody);
+      if (typeof parsed?.error === 'string' && parsed.error.trim()) return parsed.error;
+      if (typeof parsed?.message === 'string' && parsed.message.trim()) return parsed.message;
+    } catch (_error) {
+      // Fall through to text handling.
+    }
+
+    const compactBody = rawBody.replace(/\s+/g, ' ').trim();
+    if (/<!doctype html>|<html/i.test(compactBody)) {
+      return `${fallback}${statusHint}. Check backend URL/server (VITE_API_URL=${API_URL}).`;
+    }
+
+    return compactBody || `${fallback}${statusHint}`;
   };
 
   const processAudio = async () => {
@@ -46,7 +77,6 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
         setStatus(`Fetching from ${source === 'google_drive' ? 'Google Drive' : 'Dropbox'}...`);
         fileName = fileOrUrl.name;
 
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         const cloudResponse = await fetch(`${API_URL}/api/cloud/download`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -58,8 +88,7 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
         });
 
         if (!cloudResponse.ok) {
-          const errorData = await cloudResponse.json();
-          throw new Error(errorData.error || 'Failed to download cloud file');
+          throw new Error(await getErrorMessage(cloudResponse, 'Failed to download cloud file'));
         }
 
         const cloudData = await cloudResponse.json();
@@ -70,14 +99,12 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
       const isPDF = mimeType === 'application/pdf';
 
       setProgress(40);
-      setStatus(isPDF ? "Extracting text from PDF..." : "Analyzing with Gemini AI...");
+      setStatus(isPDF ? "Extracting text from PDF..." : "Analyzing with AI...");
 
-      // Use backend API proxy instead of direct Gemini API
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
+      // Use backend API proxy for AI processing
       let response;
       if (isPDF) {
-        response = await fetch(`${API_URL}/api/gemini/process-pdf`, {
+        response = await fetch(`${API_URL}/api/ai/process-pdf`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -88,7 +115,7 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
           })
         });
       } else {
-        response = await fetch(`${API_URL}/api/gemini/transcribe-audio`, {
+        response = await fetch(`${API_URL}/api/ai/transcribe-audio`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -102,8 +129,7 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
       }
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Transcription failed');
+        throw new Error(await getErrorMessage(response, 'AI processing failed'));
       }
 
       const result = await response.json();

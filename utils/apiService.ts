@@ -2,7 +2,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 /**
  * API service for making requests to the backend proxy
- * This keeps the Gemini API key secure on the server side
+ * This keeps the OpenAI API key secure on the server side
  */
 class APIService {
     private baseURL: string;
@@ -11,11 +11,41 @@ class APIService {
         this.baseURL = API_URL;
     }
 
+    private async getErrorMessage(response: Response, fallback: string): Promise<string> {
+        const statusHint = ` (HTTP ${response.status})`;
+
+        let rawBody = '';
+        try {
+            rawBody = await response.text();
+        } catch (error) {
+            return `${fallback}${statusHint}`;
+        }
+
+        if (!rawBody) {
+            return `${fallback}${statusHint}`;
+        }
+
+        try {
+            const parsed = JSON.parse(rawBody);
+            if (typeof parsed?.error === 'string' && parsed.error.trim()) return parsed.error;
+            if (typeof parsed?.message === 'string' && parsed.message.trim()) return parsed.message;
+        } catch (error) {
+            // Fall through to text handling.
+        }
+
+        const compactBody = rawBody.replace(/\s+/g, ' ').trim();
+        if (/<!doctype html>|<html/i.test(compactBody)) {
+            return `${fallback}${statusHint}. Check backend URL/server (VITE_API_URL=${this.baseURL}).`;
+        }
+
+        return compactBody || `${fallback}${statusHint}`;
+    }
+
     /**
      * Transcribe an audio file using the backend proxy
      */
     async transcribeAudio(audioData: string, mimeType: string, fileName: string) {
-        const response = await fetch(`${this.baseURL}/api/gemini/transcribe-audio`, {
+        const response = await fetch(`${this.baseURL}/api/ai/transcribe-audio`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -28,8 +58,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Transcription failed');
+            throw new Error(await this.getErrorMessage(response, 'Transcription failed'));
         }
 
         return response.json();
@@ -39,7 +68,7 @@ class APIService {
      * Generate summary from transcript using the backend proxy
      */
     async generateSummary(transcript: string) {
-        const response = await fetch(`${this.baseURL}/api/gemini/generate-summary`, {
+        const response = await fetch(`${this.baseURL}/api/ai/generate-summary`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -48,8 +77,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Summary generation failed');
+            throw new Error(await this.getErrorMessage(response, 'Summary generation failed'));
         }
 
         return response.json();
@@ -59,7 +87,7 @@ class APIService {
      * Chat with AI about meeting content using the backend proxy
      */
     async chatWithAI(transcript: string, question: string) {
-        const response = await fetch(`${this.baseURL}/api/gemini/chat`, {
+        const response = await fetch(`${this.baseURL}/api/ai/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -68,8 +96,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Chat request failed');
+            throw new Error(await this.getErrorMessage(response, 'Chat request failed'));
         }
 
         return response.json();
@@ -81,11 +108,9 @@ class APIService {
      * This is a placeholder for future implementation
      */
     async createLiveSession() {
-        // For now, use the direct Gemini API for live sessions
+        // For now, use backend transcription after recording completes
         // In production, you should implement WebSocket streaming through the backend
-        console.warn('Live sessions still use direct API - implement WebSocket proxy for production');
-
-        // This will remain using the direct API until WebSocket proxy is implemented
+        console.warn('Live streaming is not implemented yet - use post-recording transcription');
         return null;
     }
 
@@ -113,8 +138,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to connect Google Calendar');
+            throw new Error(await this.getErrorMessage(response, 'Failed to connect Google Calendar'));
         }
 
         return response.json();
@@ -132,8 +156,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to connect Outlook Calendar');
+            throw new Error(await this.getErrorMessage(response, 'Failed to connect Outlook Calendar'));
         }
 
         return response.json();
@@ -151,8 +174,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to fetch calendar events');
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch calendar events'));
         }
 
         return response.json();
@@ -170,8 +192,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to disconnect calendar');
+            throw new Error(await this.getErrorMessage(response, 'Failed to disconnect calendar'));
         }
 
         return response.json();
@@ -193,8 +214,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to fetch shared meetings');
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch shared meetings'));
         }
 
         return response.json();
@@ -214,8 +234,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to share meeting');
+            throw new Error(await this.getErrorMessage(response, 'Failed to share meeting'));
         }
 
         return response.json();
@@ -233,8 +252,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to remove share');
+            throw new Error(await this.getErrorMessage(response, 'Failed to remove share'));
         }
 
         return response.json();
@@ -252,8 +270,7 @@ class APIService {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to mark as viewed');
+            throw new Error(await this.getErrorMessage(response, 'Failed to mark as viewed'));
         }
 
         return response.json();

@@ -82,6 +82,10 @@ export const ChatInputSchema = z.object({
   question: z.string().min(1, 'Question cannot be empty').max(1000, 'Question too long'),
 });
 
+export const RefineNoteInputSchema = z.object({
+  content: z.string().min(1, 'Content is required').max(50000, 'Content is too long'),
+});
+
 export const ProcessPDFInputSchema = z.object({
   fileData: z.string().min(1, 'File data is required'),
   fileName: z.string().min(1, 'File name is required'),

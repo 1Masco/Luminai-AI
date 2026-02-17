@@ -7,14 +7,14 @@ const mockAuth = jest.fn((req, res, next) => {
   next();
 });
 
-// Create a minimal test app for Gemini routes
+// Create a minimal test app for AI routes
 const createTestApp = () => {
   const app = express();
   app.use(express.json());
   app.use(mockAuth);
 
   // Mock transcription route
-  app.post('/api/gemini/transcribe-audio', (req, res) => {
+  app.post('/api/ai/transcribe-audio', (req, res) => {
     const { audioData, mimeType } = req.body;
 
     if (!audioData || !mimeType) {
@@ -29,7 +29,7 @@ const createTestApp = () => {
   });
 
   // Mock summary generation route
-  app.post('/api/gemini/generate-summary', (req, res) => {
+  app.post('/api/ai/generate-summary', (req, res) => {
     const { transcript } = req.body;
 
     if (!transcript) {
@@ -47,7 +47,7 @@ const createTestApp = () => {
   });
 
   // Mock chat route
-  app.post('/api/gemini/chat', (req, res) => {
+  app.post('/api/ai/chat', (req, res) => {
     const { transcript, question } = req.body;
 
     if (!transcript || !question) {
@@ -71,7 +71,7 @@ const createTestApp = () => {
   return app;
 };
 
-describe('Gemini AI Routes', () => {
+describe('AI Routes', () => {
   let app;
 
   beforeEach(() => {
@@ -79,10 +79,10 @@ describe('Gemini AI Routes', () => {
     jest.clearAllMocks();
   });
 
-  describe('POST /api/gemini/transcribe-audio', () => {
+  describe('POST /api/ai/transcribe-audio', () => {
     test('transcribes audio with valid data', async () => {
       const res = await request(app)
-        .post('/api/gemini/transcribe-audio')
+        .post('/api/ai/transcribe-audio')
         .send({
           audioData: 'data:audio/mp3;base64,SGVsbG8gd29ybGQ=',
           mimeType: 'audio/mp3',
@@ -96,7 +96,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for missing audio data', async () => {
       const res = await request(app)
-        .post('/api/gemini/transcribe-audio')
+        .post('/api/ai/transcribe-audio')
         .send({
           mimeType: 'audio/mp3',
         });
@@ -107,7 +107,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for missing mime type', async () => {
       const res = await request(app)
-        .post('/api/gemini/transcribe-audio')
+        .post('/api/ai/transcribe-audio')
         .send({
           audioData: 'data:audio/mp3;base64,SGVsbG8gd29ybGQ=',
         });
@@ -117,12 +117,12 @@ describe('Gemini AI Routes', () => {
     });
   });
 
-  describe('POST /api/gemini/generate-summary', () => {
+  describe('POST /api/ai/generate-summary', () => {
     test('generates summary from transcript', async () => {
       const transcript = 'The team discussed the new feature implementation...';
 
       const res = await request(app)
-        .post('/api/gemini/generate-summary')
+        .post('/api/ai/generate-summary')
         .send({ transcript });
 
       expect(res.status).toBe(200);
@@ -134,7 +134,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for missing transcript', async () => {
       const res = await request(app)
-        .post('/api/gemini/generate-summary')
+        .post('/api/ai/generate-summary')
         .send({});
 
       expect(res.status).toBe(400);
@@ -142,10 +142,10 @@ describe('Gemini AI Routes', () => {
     });
   });
 
-  describe('POST /api/gemini/chat', () => {
+  describe('POST /api/ai/chat', () => {
     test('answers question about transcript', async () => {
       const res = await request(app)
-        .post('/api/gemini/chat')
+        .post('/api/ai/chat')
         .send({
           transcript: 'The meeting discussed quarterly goals...',
           question: 'What were the main topics discussed?',
@@ -158,7 +158,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for missing transcript', async () => {
       const res = await request(app)
-        .post('/api/gemini/chat')
+        .post('/api/ai/chat')
         .send({
           question: 'What was discussed?',
         });
@@ -169,7 +169,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for missing question', async () => {
       const res = await request(app)
-        .post('/api/gemini/chat')
+        .post('/api/ai/chat')
         .send({
           transcript: 'The meeting content...',
         });
@@ -180,7 +180,7 @@ describe('Gemini AI Routes', () => {
 
     test('returns 400 for empty question', async () => {
       const res = await request(app)
-        .post('/api/gemini/chat')
+        .post('/api/ai/chat')
         .send({
           transcript: 'The meeting content...',
           question: '   ',
@@ -192,7 +192,7 @@ describe('Gemini AI Routes', () => {
 
     test('includes follow-up questions in response', async () => {
       const res = await request(app)
-        .post('/api/gemini/chat')
+        .post('/api/ai/chat')
         .send({
           transcript: 'The meeting discussed new features...',
           question: 'What features were mentioned?',

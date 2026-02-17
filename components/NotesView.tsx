@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Note, Meeting } from '../types';
-import { GoogleGenAI } from '@google/genai';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface NotesViewProps {
   notes: Note[];
@@ -76,17 +77,24 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
     if (!selectedItem || selectedItem.isRecording || isMagicWriting) return;
     setIsMagicWriting(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Please refine and improve the following note content. Make it professional, clear, and well-organized. Keep the core meaning the same.
-        
-        Content:
-        ${selectedItem.content}`,
+      const response = await fetch(`${API_URL}/api/ai/refine-note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: selectedItem.content,
+        }),
       });
-      
-      if (response.text) {
-        updateSelectedNote('content', response.text.trim());
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to refine note');
+      }
+
+      const result = await response.json();
+      if (typeof result.content === 'string' && result.content.trim()) {
+        updateSelectedNote('content', result.content.trim());
       }
     } catch (err) {
       console.error("Magic Write error:", err);

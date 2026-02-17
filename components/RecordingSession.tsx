@@ -1,6 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import React, { useEffect, useRef, useState } from 'react';
 import { Meeting, TranscriptPart } from '../types';
 
 interface RecordingSessionProps {
@@ -8,284 +6,313 @@ interface RecordingSessionProps {
   onCancel: () => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel }) => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [transcript, setTranscript] = useState<TranscriptPart[]>([]);
-  const [currentText, setCurrentText] = useState("");
+  const [status, setStatus] = useState('Preparing microphone...');
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sessionRef = useRef<any>(null);
-  // Fix: Use 'any' for timerRef to avoid NodeJS.Timeout namespace issues in browser-only environments
-  const timerRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  
-  // Fix: Use refs to track current transcription state and duration inside Live API callbacks 
-  // to avoid stale closures and ensure data is captured correctly.
-  const currentTextRef = useRef("");
-  const durationRef = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingMimeTypeRef = useRef('audio/webm');
+  const mountedRef = useRef(true);
+  const shouldProcessOnStopRef = useRef(false);
 
-  // Initialize recording
   useEffect(() => {
-    startSession();
-    return () => stopSession();
+    startRecordingSession();
+    return () => {
+      mountedRef.current = false;
+      shouldProcessOnStopRef.current = false;
+      stopMediaResources();
+    };
   }, []);
 
-  const startSession = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextRef.current = audioCtx;
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        resolve((result.split(',')[1] || '').trim());
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
 
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-        callbacks: {
-          onopen: () => {
-            setIsRecording(true);
-            const source = audioCtx.createMediaStreamSource(stream);
-            const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
-            
-            scriptProcessor.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              // Simple visualization data
-              drawVisualizer(inputData);
-              
-              const pcmBlob = createBlob(inputData);
-              // CRITICAL: Solely rely on sessionPromise resolves and then call session.sendRealtimeInput
-              sessionPromise.then(session => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
-            };
-            
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(audioCtx.destination);
-            
-            // Start timer
-            timerRef.current = setInterval(() => {
-              setDuration(prev => {
-                const next = prev + 1;
-                durationRef.current = next;
-                return next;
-              });
-            }, 1000);
-          },
-          onmessage: async (message: LiveServerMessage) => {
-            // Fix: Handle transcriptions using refs to avoid stale state in the callback closure
-            if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              if (text) {
-                currentTextRef.current += " " + text;
-                setCurrentText(currentTextRef.current);
-              }
-            }
-            
-            if (message.serverContent?.turnComplete) {
-              const textToSave = currentTextRef.current.trim();
-              if (textToSave.length > 0) {
-                const newPart: TranscriptPart = {
-                  id: Date.now().toString(),
-                  speaker: "Speaker 1",
-                  text: textToSave,
-                  timestamp: durationRef.current
-                };
-                setTranscript(prev => [...prev, newPart]);
-              }
-              currentTextRef.current = "";
-              setCurrentText("");
-            }
-          },
-          onerror: (e) => {
-            console.error("Gemini Live Error:", e);
-            setError("Connectivity error with AI server. Please check your internet.");
-          }
-        },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          inputAudioTranscription: {},
-          systemInstruction: "You are a transcription assistant. Transcribe everything you hear as accurately as possible. Use standard punctuation."
-        }
-      });
-
-      sessionRef.current = await sessionPromise;
-    } catch (err: any) {
-      console.error(err);
-      setError("Could not access microphone or connect to AI service.");
+  const stopMediaResources = () => {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-  };
 
-  const stopSession = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (audioContextRef.current) audioContextRef.current.close();
-    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-    setIsRecording(false);
-  };
-
-  const createBlob = (data: Float32Array) => {
-    const l = data.length;
-    const int16 = new Int16Array(l);
-    for (let i = 0; i < l; i++) {
-      int16[i] = data[i] * 32768;
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
     }
-    return {
-      data: encode(new Uint8Array(int16.buffer)),
-      // The supported audio MIME type is 'audio/pcm'.
-      mimeType: 'audio/pcm;rate=16000',
-    };
-  };
 
-  const encode = (bytes: Uint8Array) => {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
     }
-    return btoa(binary);
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    mediaRecorderRef.current = null;
+    analyserRef.current = null;
   };
 
-  const drawVisualizer = (data: Float32Array) => {
+  const drawVisualizer = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const analyser = analyserRef.current;
+
+    if (!canvas || !analyser) return;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const buffer = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(buffer);
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2563eb';
     ctx.beginPath();
 
-    const sliceWidth = canvas.width / data.length;
+    const sliceWidth = canvas.width / buffer.length;
     let x = 0;
 
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i] * 100;
-      const y = (canvas.height / 2) + v;
+    for (let i = 0; i < buffer.length; i += 1) {
+      const v = buffer[i] / 128.0;
+      const y = (v * canvas.height) / 2;
 
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
 
       x += sliceWidth;
     }
 
     ctx.lineTo(canvas.width, canvas.height / 2);
     ctx.stroke();
+
+    animationRef.current = requestAnimationFrame(drawVisualizer);
+  };
+
+  const startRecordingSession = async () => {
+    try {
+      setStatus('Requesting microphone access...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+      recordingMimeTypeRef.current = recorder.mimeType || 'audio/webm';
+
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const shouldProcess = shouldProcessOnStopRef.current;
+        stopMediaResources();
+        setIsRecording(false);
+        if (shouldProcess && mountedRef.current) {
+          void processRecording();
+        }
+      };
+
+      recorder.start(1000);
+      setIsRecording(true);
+      setStatus('Recording in progress...');
+
+      timerRef.current = window.setInterval(() => {
+        setDuration((prev) => prev + 1);
+      }, 1000);
+
+      drawVisualizer();
+    } catch (err) {
+      console.error(err);
+      setError('Could not access microphone. Please allow microphone permissions and try again.');
+      setStatus('Microphone unavailable');
+    }
+  };
+
+  const processRecording = async () => {
+    try {
+      setStatus('Uploading recording for transcription...');
+
+      const mimeType = recordingMimeTypeRef.current || 'audio/webm';
+      const audioBlob = new Blob(chunksRef.current, { type: mimeType });
+      if (!audioBlob.size) {
+        throw new Error('No audio was captured.');
+      }
+
+      const audioData = await blobToBase64(audioBlob);
+      const fileName = `recording-${Date.now()}.webm`;
+
+      const response = await fetch(`${API_URL}/api/ai/transcribe-audio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioData,
+          mimeType,
+          fileName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Transcription failed');
+      }
+
+      const result = await response.json();
+      const transcript: TranscriptPart[] = Array.isArray(result.transcript)
+        ? result.transcript.map((part: any, idx: number) => ({
+            id: `t-${idx}`,
+            speaker: part?.speaker || 'Speaker 1',
+            text: part?.text || '',
+            timestamp: Number.isFinite(part?.timestamp) ? part.timestamp : idx * 5,
+          }))
+        : [];
+
+      const meeting: Meeting = {
+        id: Date.now().toString(),
+        title:
+          result.title ||
+          `Recording ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`,
+        date: new Date().toISOString(),
+        duration: result.durationSeconds || duration,
+        transcript,
+        summary: result.summary || 'No summary available.',
+        actionItems: Array.isArray(result.actionItems) ? result.actionItems : [],
+        sentiment: result.sentiment || 'neutral',
+      };
+
+      onFinish(meeting);
+    } catch (err: any) {
+      console.error('Recording processing error:', err);
+      setError(err.message || 'Failed to process recording.');
+      setIsProcessing(false);
+      setStatus('Processing failed');
+    }
   };
 
   const handleFinish = () => {
-    stopSession();
-    // Final text push - capture the latest state from refs to ensure accuracy
-    const finalPart: TranscriptPart = {
-      id: "final",
-      speaker: "Speaker 1",
-      text: currentTextRef.current.trim(),
-      timestamp: durationRef.current
-    };
-    
-    const meeting: Meeting = {
-      id: Date.now().toString(),
-      title: `Recording ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      date: new Date().toISOString(),
-      duration: durationRef.current,
-      transcript: finalPart.text ? [...transcript, finalPart] : transcript,
-    };
-    onFinish(meeting);
+    if (isProcessing) return;
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== 'recording') {
+      setError('No active recording found.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setStatus('Finalizing recording...');
+    shouldProcessOnStopRef.current = true;
+    recorder.stop();
   };
 
-  const formatTime = (sec: number) => {
-    const hrs = Math.floor(sec / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    return `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const handleCancel = () => {
+    shouldProcessOnStopRef.current = false;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      stopMediaResources();
+    }
+    onCancel();
+  };
+
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs > 0 ? `${hrs}:` : ''}${mins.toString().padStart(2, '0')}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+    <div className="flex h-full flex-col bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 p-6">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-          <span className="font-bold text-gray-900">Live Recording</span>
-          <span className="text-gray-500 font-mono">{formatTime(duration)}</span>
+          <div className={`h-3 w-3 rounded-full ${isProcessing ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`} />
+          <span className="font-bold text-gray-900">{isProcessing ? 'Processing Recording' : 'Live Recording'}</span>
+          <span className="font-mono text-gray-500">{formatTime(duration)}</span>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
+          <button
+            onClick={handleCancel}
+            disabled={isProcessing}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-50"
           >
             Cancel
           </button>
-          <button 
+          <button
             onClick={handleFinish}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all shadow-md"
+            disabled={!isRecording || isProcessing}
+            className="rounded-lg bg-blue-600 px-6 py-2 font-bold text-white shadow-md transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Done
+            {isProcessing ? 'Processing...' : 'Done'}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden">
+      <div className="flex flex-1 flex-col items-center justify-center overflow-hidden p-8">
         {error ? (
-          <div className="text-center p-8 bg-red-50 text-red-600 rounded-2xl max-w-md">
-            <i className="fas fa-triangle-exclamation text-3xl mb-4"></i>
-            <h2 className="text-xl font-bold mb-2">Recording Error</h2>
+          <div className="max-w-md rounded-2xl bg-red-50 p-8 text-center text-red-600">
+            <i className="fas fa-triangle-exclamation mb-4 text-3xl" />
+            <h2 className="mb-2 text-xl font-bold">Recording Error</h2>
             <p className="mb-6">{error}</p>
-            <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold">Retry</button>
+            <button onClick={() => window.location.reload()} className="rounded-lg bg-red-600 px-6 py-2 font-bold text-white">
+              Retry
+            </button>
           </div>
         ) : (
-          <div className="w-full max-w-4xl h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto mb-8 space-y-6 scrollbar-hide pr-4">
-              {transcript.map((p, idx) => (
-                <div key={p.id} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <p className="text-xs font-bold text-blue-600 uppercase mb-1">{p.speaker} • {formatTime(p.timestamp)}</p>
-                  <p className="text-gray-800 text-lg leading-relaxed">{p.text}</p>
-                </div>
-              ))}
-              {currentText && (
-                <div className="opacity-50">
-                  <p className="text-xs font-bold text-gray-400 uppercase mb-1">Speaker 1 • {formatTime(duration)}</p>
-                  <p className="text-gray-800 text-lg leading-relaxed italic">{currentText}...</p>
-                </div>
-              )}
-              {transcript.length === 0 && !currentText && (
-                <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50">
-                  <i className="fas fa-wave-square text-6xl mb-4"></i>
-                  <p className="text-xl">Waiting for audio...</p>
-                </div>
-              )}
+          <div className="flex h-full w-full max-w-4xl flex-col">
+            <div className="mb-8 flex-1 overflow-y-auto pr-4">
+              <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-70">
+                <i className={`fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-wave-square'} mb-4 text-6xl`} />
+                <p className="text-xl text-gray-500">{status}</p>
+              </div>
             </div>
 
-            <div className="h-24 relative bg-gray-50 rounded-2xl overflow-hidden mb-4 border border-gray-100">
-              <canvas ref={canvasRef} width={800} height={100} className="w-full h-full" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Audio Input Stream</p>
+            <div className="relative mb-4 h-24 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
+              <canvas ref={canvasRef} width={800} height={100} className="h-full w-full" />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Audio Input Stream</p>
               </div>
             </div>
           </div>
         )}
-      </div>
-
-      <div className="p-8 border-t border-gray-100 flex justify-center gap-12 bg-gray-50/50">
-         <button className="flex flex-col items-center gap-2 group">
-           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm group-hover:scale-110 transition-transform">
-             <i className="fas fa-image text-gray-400 group-hover:text-blue-500"></i>
-           </div>
-           <span className="text-[10px] font-bold uppercase text-gray-500">Capture</span>
-         </button>
-         <button className="flex flex-col items-center gap-2 group">
-           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm group-hover:scale-110 transition-transform">
-             <i className="fas fa-highlighter text-gray-400 group-hover:text-yellow-500"></i>
-           </div>
-           <span className="text-[10px] font-bold uppercase text-gray-500">Highlight</span>
-         </button>
-         <button className="flex flex-col items-center gap-2 group">
-           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm group-hover:scale-110 transition-transform">
-             <i className="fas fa-comment-dots text-gray-400 group-hover:text-purple-500"></i>
-           </div>
-           <span className="text-[10px] font-bold uppercase text-gray-500">Comment</span>
-         </button>
       </div>
     </div>
   );
