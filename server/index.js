@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import requestId from 'express-request-id';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import logger from './logger/winston.config.js';
 import { errorHandler, notFoundHandler } from './errors/errorHandler.js';
 import aiRoutes from './routes/ai.js';
@@ -19,6 +21,9 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Security middleware
 app.use(helmet());
@@ -57,12 +62,24 @@ app.use((req, res, next) => {
 });
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+const defaultOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
 ];
+const envOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const renderOrigin = process.env.RENDER_EXTERNAL_URL;
+const allowedOrigins = Array.from(
+  new Set([
+    ...defaultOrigins,
+    ...envOrigins,
+    ...(renderOrigin ? [renderOrigin] : []),
+  ])
+);
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -98,21 +115,23 @@ app.get('/health', (req, res) => {
 });
 
 // Root endpoint for manual browser checks.
-app.get('/', (req, res) => {
-  res.json({
-    service: 'Luminai-AI Backend',
-    status: 'ok',
-    message: 'Backend is running. Use frontend on http://localhost:3000.',
-    endpoints: {
-      health: '/health',
-      ai: '/api/ai',
-      auth: '/api/auth',
-      meetings: '/api/meetings',
-      notes: '/api/notes',
-    },
-    timestamp: new Date().toISOString(),
+if (!isProduction) {
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'Luminai-AI Backend',
+      status: 'ok',
+      message: 'Backend is running. Use frontend on http://localhost:3000.',
+      endpoints: {
+        health: '/health',
+        ai: '/api/ai',
+        auth: '/api/auth',
+        meetings: '/api/meetings',
+        notes: '/api/notes',
+      },
+      timestamp: new Date().toISOString(),
+    });
   });
-});
+}
 
 // API routes
 app.use('/api/ai', aiRoutes);
@@ -124,6 +143,14 @@ app.use('/api/meetings', meetingsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/cloud', cloudRoutes);
 app.use('/api/sharing', sharingRoutes);
+
+if (isProduction) {
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
 
 // Error handling middleware
 // 404 handler - must be BEFORE global error handler

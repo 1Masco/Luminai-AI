@@ -8,6 +8,8 @@
     "dev:server": "cd server && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "vite build",
+    "render-build": "npm --prefix server install && npm run build",
+    "start": "npm --prefix server start",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
     "test": "jest",
