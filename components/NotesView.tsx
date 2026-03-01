@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { Note, Meeting } from '../types';
+import config from '../utils/config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = config.apiUrl;
 
 interface NotesViewProps {
   notes: Note[];

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Meeting } from '../types';
+import config from '../utils/config';
 
 interface AudioProcessorProps {
   fileOrUrl: File | { name: string, url: string };
@@ -12,7 +13,7 @@ const AudioProcessor: React.FC<AudioProcessorProps> = ({ fileOrUrl, onFinish, on
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Preparing file...");
   const [error, setError] = useState<string | null>(null);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const API_URL = config.apiUrl;
 
   useEffect(() => {
     processAudio();

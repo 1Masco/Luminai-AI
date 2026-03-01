@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import config from './config';
+
+const API_URL = config.apiUrl;
 
 /**
  * API service for making requests to the backend proxy

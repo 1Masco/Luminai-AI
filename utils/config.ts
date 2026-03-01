@@ -1,9 +1,17 @@
 // Centralized frontend configuration
 // All environment variables are validated here
 
+const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
+const isBrowser = typeof window !== 'undefined';
+const isLocalHost =
+  isBrowser && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const defaultApiUrl = isLocalHost
+  ? 'http://localhost:3001'
+  : (isBrowser ? window.location.origin : 'http://localhost:3001');
+
 export const config = {
   // API Configuration
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  apiUrl: envApiUrl || defaultApiUrl,
 
   // Supabase
   supabase: {
@@ -48,10 +56,6 @@ export function isSupabaseConfigured() {
  */
 export function validateConfig() {
   const errors = [];
-
-  if (!config.apiUrl) {
-    errors.push('API URL not configured (VITE_API_URL)');
-  }
 
   if (!config.supabase.url) {
     errors.push('Supabase URL not configured (VITE_SUPABASE_URL)');

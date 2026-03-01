@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Meeting, TranscriptPart } from '../types';
+import config from '../utils/config';
 
 interface RecordingSessionProps {
   onFinish: (meeting: Meeting) => void;
   onCancel: () => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = config.apiUrl;
 
 const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel }) => {
   const [isRecording, setIsRecording] = useState(false);

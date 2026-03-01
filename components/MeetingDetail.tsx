@@ -4,6 +4,7 @@ import { Meeting } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 import { exportSummaryAsPDF, exportTranscriptAsPDF, exportFullReportAsPDF } from '../utils/pdfExport';
+import config from '../utils/config';
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -46,8 +47,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
       const fullTranscript = meeting.transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
 
       // Use backend API proxy
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/ai/generate-summary`, {
+      const response = await fetch(`${config.apiUrl}/api/ai/generate-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -179,8 +179,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
       const fullTranscript = meeting.transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
 
       // Use backend API proxy
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/api/ai/chat`, {
+      const response = await fetch(`${config.apiUrl}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
