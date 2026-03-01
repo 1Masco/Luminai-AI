@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "Backend API proxy for Luminai-AI",
     "type": "module",
+    "engines": {
+        "node": ">=20.16.0 <21 || >=22.3.0"
+    },
     "main": "index.js",
     "scripts": {
         "start": "node index.js",

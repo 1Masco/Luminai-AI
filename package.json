@@ -3,13 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.16.0 <21 || >=22.3.0"
+  },
   "scripts": {
     "dev": "vite",
     "dev:server": "cd server && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "vite build",
-    "render-build": "npm install --legacy-peer-deps && cd server && npm install && cd .. && npm run build",
-    "start": "cd server && npm start",
+    "render-build": "npm install --legacy-peer-deps && npm --prefix server install && npm run build",
+    "start": "npm --prefix server start",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
     "test": "jest",

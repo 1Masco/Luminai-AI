@@ -1,5 +1,6 @@
 import winston from 'winston';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,6 +40,8 @@ const transports = [
 // File transports - only in production or when explicitly enabled
 if (!isDevelopment || process.env.LOG_FILES === 'true') {
   const logsDir = path.join(__dirname, '../logs');
+  // Render/CI containers may not include this directory from git; create it at runtime.
+  fs.mkdirSync(logsDir, { recursive: true });
 
   transports.push(
     // Error log file
