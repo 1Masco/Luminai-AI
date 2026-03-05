@@ -1,18 +1,35 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { CalendarEvent } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 
 interface CalendarSyncProps {
   onBack: () => void;
+  onJoinAndRecord?: (meetingTitle: string, meetingLink?: string) => void;
 }
 
-const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
+const AUTO_JOIN_STORAGE_KEY = 'lumina_auto_join_events';
+
+const getStoredAutoJoinIds = (): Set<string> => {
+  try {
+    const stored = localStorage.getItem(AUTO_JOIN_STORAGE_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const saveAutoJoinIds = (ids: Set<string>) => {
+  localStorage.setItem(AUTO_JOIN_STORAGE_KEY, JSON.stringify([...ids]));
+};
+
+const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack, onJoinAndRecord }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectedGoogle, setConnectedGoogle] = useState(false);
   const [connectedOutlook, setConnectedOutlook] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [userEmail, setUserEmail] = useState('');
+  const [autoJoinIds, setAutoJoinIds] = useState<Set<string>>(getStoredAutoJoinIds);
 
   useEffect(() => {
     loadUserData();
@@ -35,7 +52,6 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
 
       setUserEmail(user.email || '');
 
-      // Fetch user profile to check connected apps
       const { data: profile } = await supabase
         .from('profiles')
         .select('connected_apps')
@@ -47,7 +63,6 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
         setConnectedOutlook(profile.connected_apps.outlook || false);
       }
 
-      // If any calendar is connected, fetch events
       if (profile?.connected_apps?.google || profile?.connected_apps?.outlook) {
         await fetchCalendarEvents();
       }
@@ -65,7 +80,6 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
     const status = params.get('status');
 
     if (calendar && status === 'success') {
-      // Refresh the page to load new connection status
       window.history.replaceState({}, '', window.location.pathname);
       loadUserData();
     }
@@ -79,7 +93,12 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
       if (!session) return;
 
       const { events: calendarEvents } = await apiService.getCalendarEvents(session.access_token);
-      setEvents(calendarEvents || []);
+      const storedIds = getStoredAutoJoinIds();
+      const enrichedEvents = (calendarEvents || []).map((e: CalendarEvent) => ({
+        ...e,
+        autoJoin: storedIds.has(e.id),
+      }));
+      setEvents(enrichedEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
     }
@@ -153,11 +172,38 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
     }
   };
 
-  const toggleAutoJoin = (id: string) => {
+  const toggleAutoJoin = useCallback((id: string) => {
+    setAutoJoinIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      saveAutoJoinIds(next);
+      return next;
+    });
     setEvents(prev => prev.map(e => e.id === id ? { ...e, autoJoin: !e.autoJoin } : e));
+  }, []);
+
+  const handleJoinAndRecord = (event: CalendarEvent) => {
+    if (event.link) {
+      window.open(event.link, '_blank');
+    }
+    if (onJoinAndRecord) {
+      onJoinAndRecord(event.title, event.link);
+    }
   };
 
   const isSynced = connectedGoogle || connectedOutlook;
+
+  // Find the next upcoming meeting (within the next 15 minutes)
+  const nextUpcomingMeeting = events.find(event => {
+    const startTime = new Date(event.startTime).getTime();
+    const now = Date.now();
+    const diff = startTime - now;
+    return diff > -5 * 60 * 1000 && diff < 15 * 60 * 1000;
+  });
 
   if (isLoading) {
     return (
@@ -183,6 +229,37 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
       </header>
 
       <div className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full">
+        {/* Upcoming Meeting Reminder Banner */}
+        {nextUpcomingMeeting && (
+          <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg shadow-blue-200">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <i className="fas fa-video text-lg"></i>
+                </div>
+                <div>
+                  <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-0.5">Starting Soon</p>
+                  <h3 className="text-lg font-bold">{nextUpcomingMeeting.title}</h3>
+                  <p className="text-blue-200 text-sm">
+                    {new Date(nextUpcomingMeeting.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {' · '}
+                    {nextUpcomingMeeting.platform === 'google_meet' ? 'Google Meet' :
+                      nextUpcomingMeeting.platform === 'zoom' ? 'Zoom' :
+                        nextUpcomingMeeting.platform === 'teams' ? 'Teams' : 'Meeting'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleJoinAndRecord(nextUpcomingMeeting)}
+                className="px-6 py-3 bg-white text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-md"
+              >
+                <i className="fas fa-circle text-red-500 text-[8px] animate-pulse"></i>
+                Join & Record
+              </button>
+            </div>
+          </div>
+        )}
+
         {!isSynced ? (
           <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-300 px-6">
             <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6 text-3xl text-gray-400">
@@ -288,47 +365,63 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
               ) : (
                 <div className="space-y-3">
                   {events.map(event => (
-                    <div key={event.id} className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4 hover:border-blue-100 transition-colors shadow-sm">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl ${event.platform === 'google_meet' ? 'bg-blue-50 text-blue-600' :
-                        event.platform === 'zoom' ? 'bg-blue-100 text-blue-700' :
-                          'bg-purple-50 text-purple-600'
-                        }`}>
-                        <i className={`fas ${event.platform === 'google_meet' ? 'fa-video' :
-                          event.platform === 'zoom' ? 'fa-video' :
-                            'fa-users-rectangle'
-                          }`}></i>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
-                            {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <span className="text-[10px] font-medium text-gray-400">
-                            {new Date(event.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                          </span>
+                    <div key={event.id} className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-blue-100 transition-colors shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl ${event.platform === 'google_meet' ? 'bg-blue-50 text-blue-600' :
+                          event.platform === 'zoom' ? 'bg-blue-100 text-blue-700' :
+                            'bg-purple-50 text-purple-600'
+                          }`}>
+                          <i className={`fas ${event.platform === 'google_meet' ? 'fa-video' :
+                            event.platform === 'zoom' ? 'fa-video' :
+                              'fa-users-rectangle'
+                            }`}></i>
                         </div>
-                        <h4 className="font-bold text-gray-900 truncate mb-1">{event.title}</h4>
-                        <div className="flex items-center gap-3">
-                          {event.link && (
-                            <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-blue-500 flex items-center gap-1">
-                              <i className="fas fa-link text-[10px]"></i>
-                              Meeting Link
-                            </a>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+                              {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="text-[10px] font-medium text-gray-400">
+                              {new Date(event.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-gray-900 truncate mb-1">{event.title}</h4>
+                          <div className="flex items-center gap-3">
+                            {event.link && (
+                              <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-blue-500 flex items-center gap-1">
+                                <i className="fas fa-link text-[10px]"></i>
+                                Meeting Link
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          {/* Join & Record Button */}
+                          {event.link && onJoinAndRecord && (
+                            <button
+                              onClick={() => handleJoinAndRecord(event)}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                            >
+                              <i className="fas fa-circle text-red-300 text-[6px] animate-pulse"></i>
+                              Join & Record
+                            </button>
                           )}
-                        </div>
-                      </div>
 
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className={`text-[10px] font-bold uppercase tracking-tight ${event.autoJoin ? 'text-green-600' : 'text-gray-400'}`}>
-                          {event.autoJoin ? 'Auto-Record ON' : 'Auto-Record OFF'}
-                        </span>
-                        <button
-                          onClick={() => toggleAutoJoin(event.id)}
-                          className={`w-14 h-7 rounded-full relative transition-colors ${event.autoJoin ? 'bg-blue-600' : 'bg-gray-200'}`}
-                        >
-                          <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${event.autoJoin ? 'right-1' : 'left-1'}`}></div>
-                        </button>
+                          {/* Auto-Record Toggle */}
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-tight ${event.autoJoin ? 'text-green-600' : 'text-gray-400'}`}>
+                              {event.autoJoin ? 'Auto-Record ON' : 'Auto-Record OFF'}
+                            </span>
+                            <button
+                              onClick={() => toggleAutoJoin(event.id)}
+                              className={`w-14 h-7 rounded-full relative transition-colors ${event.autoJoin ? 'bg-blue-600' : 'bg-gray-200'}`}
+                            >
+                              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${event.autoJoin ? 'right-1' : 'left-1'}`}></div>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -343,9 +436,9 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack }) => {
               <div>
                 <h4 className="font-bold text-blue-900 mb-1">How does Auto-Join work?</h4>
                 <p className="text-sm text-blue-700/80 leading-relaxed">
-                  Lumina will automatically join your scheduled meetings 1 minute before they start.
-                  It will record the audio, transcribe the conversation, and generate a summary
-                  immediately after the meeting ends. You can disable this for any specific meeting above.
+                  When Auto-Record is enabled for a meeting, Lumina will notify you 2 minutes before it starts.
+                  Click "Join & Record" to open the meeting link and start recording simultaneously.
+                  Your recording will be transcribed and summarized automatically when you're done.
                 </p>
               </div>
             </div>

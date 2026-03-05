@@ -213,16 +213,18 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   return (
     <div className="h-full flex flex-col bg-white relative">
       {showShareToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 w-[90%] md:w-auto">
-          <i className="fas fa-link text-green-400"></i>
-          <span className="text-sm font-bold">Share link copied!</span>
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 glass-dark text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-slide-down w-[90%] md:w-auto border border-white/10">
+          <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
+            <i className="fas fa-check text-[10px]"></i>
+          </div>
+          <span className="text-sm font-semibold">Share link copied!</span>
         </div>
       )}
 
       {/* Share Dialog */}
       {showShareDialog && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowShareDialog(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowShareDialog(false)}>
+          <div className="glass bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 border border-white/50 animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <i className="fas fa-share-nodes text-blue-500"></i>
@@ -244,23 +246,23 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
               <>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Recipient Email</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-2">Recipient Email</label>
                     <input
                       type="email"
                       value={shareEmail}
                       onChange={(e) => setShareEmail(e.target.value)}
                       placeholder="colleague@company.com"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm focus:bg-white focus:border-brand-300 transition-all"
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Permission</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-2">Permission</label>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setSharePermission('view')}
                         className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'view'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          ? 'border-brand-400 bg-brand-50 text-brand-700'
                           : 'border-gray-200 text-gray-500 hover:border-gray-300'
                           }`}
                       >
@@ -269,7 +271,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                       <button
                         onClick={() => setSharePermission('comment')}
                         className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${sharePermission === 'comment'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          ? 'border-brand-400 bg-brand-50 text-brand-700'
                           : 'border-gray-200 text-gray-500 hover:border-gray-300'
                           }`}
                       >
@@ -281,14 +283,14 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                 <div className="mt-6 flex gap-3">
                   <button
                     onClick={() => setShowShareDialog(false)}
-                    className="flex-1 py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50"
+                    className="flex-1 py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleShareSubmit}
                     disabled={!shareEmail.trim() || isSharing}
-                    className="flex-1 py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-xl text-sm font-bold hover:from-brand-700 hover:to-brand-600 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20 transition-all"
                   >
                     {isSharing ? (
                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Sharing...</>
@@ -304,64 +306,70 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
       )}
 
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 md:gap-4 min-w-0">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 shrink-0">
-            <i className="fas fa-arrow-left"></i>
+      <div className="px-4 md:px-6 py-4 border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-white flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={onBack} className="w-9 h-9 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-700 transition-all flex items-center justify-center shrink-0">
+            <i className="fas fa-arrow-left text-sm"></i>
           </button>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 md:gap-3">
-              <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate">{meeting.title}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-extrabold text-gray-900 truncate tracking-tight">{meeting.title}</h1>
               {hasUnsavedChanges && (
-                <span className="hidden md:inline-block text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full uppercase">Unsaved</span>
+                <span className="hidden md:inline-block text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Unsaved</span>
               )}
             </div>
-            <p className="text-[10px] md:text-sm text-gray-500 truncate">
-              {new Date(meeting.date).toLocaleDateString()} • {formatTime(meeting.duration)}
+            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+              {new Date(meeting.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(meeting.duration)}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center shrink-0">
           <div className="relative">
             <button
               onClick={() => setShowPDFMenu(!showPDFMenu)}
-              className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 flex items-center gap-2"
+              className="h-9 px-3 md:px-4 text-xs md:text-sm font-semibold border border-gray-200/80 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-2 transition-all"
             >
-              <i className="fas fa-file-pdf text-red-500"></i>
-              <span className="hidden md:inline">Export PDF</span>
-              <i className={`fas fa-chevron-down text-xs transition-transform ${showPDFMenu ? 'rotate-180' : ''}`}></i>
+              <i className="fas fa-file-pdf text-red-400"></i>
+              <span className="hidden md:inline">Export</span>
+              <i className={`fas fa-chevron-down text-[10px] text-gray-400 transition-transform ${showPDFMenu ? 'rotate-180' : ''}`}></i>
             </button>
 
             {showPDFMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-40">
+              <div className="absolute right-0 mt-2 w-56 glass rounded-2xl border border-white/40 shadow-xl z-40 overflow-hidden animate-slide-down">
                 <button
                   onClick={handleExportSummary}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-sm text-gray-700 flex items-center gap-3"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50/80 border-b border-gray-100/50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <i className="fas fa-file-lines text-blue-500"></i>
+                  <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <i className="fas fa-file-lines text-blue-500 text-xs"></i>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Summary Only</p>
-                    <p className="text-xs text-gray-500">Export meeting summary and action items</p>
+                    <p className="font-semibold text-gray-900 text-xs">Summary Only</p>
+                    <p className="text-[10px] text-gray-400">Summary + action items</p>
                   </div>
                 </button>
                 <button
                   onClick={handleExportTranscript}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-sm text-gray-700 flex items-center gap-3"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50/80 border-b border-gray-100/50 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <i className="fas fa-quote-left text-green-500"></i>
+                  <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+                    <i className="fas fa-quote-left text-emerald-500 text-xs"></i>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Transcript Only</p>
-                    <p className="text-xs text-gray-500">Export full meeting transcript</p>
+                    <p className="font-semibold text-gray-900 text-xs">Transcript Only</p>
+                    <p className="text-[10px] text-gray-400">Full meeting transcript</p>
                   </div>
                 </button>
                 <button
                   onClick={handleExportFullReport}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 flex items-center gap-3"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50/80 text-sm text-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <i className="fas fa-book text-purple-500"></i>
+                  <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <i className="fas fa-book text-purple-500 text-xs"></i>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Full Report</p>
-                    <p className="text-xs text-gray-500">Summary + transcript + notes</p>
+                    <p className="font-semibold text-gray-900 text-xs">Full Report</p>
+                    <p className="text-[10px] text-gray-400">Summary + transcript</p>
                   </div>
                 </button>
               </div>
@@ -371,17 +379,17 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           {hasUnsavedChanges && (
             <button
               onClick={handleSaveChanges}
-              className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="h-9 px-3 md:px-4 text-xs md:text-sm font-bold bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all flex items-center gap-2 shadow-md shadow-emerald-500/20"
             >
-              <i className="fas fa-check md:mr-2"></i>
+              <i className="fas fa-check text-xs"></i>
               <span className="hidden md:inline">Save</span>
             </button>
           )}
           <button
             onClick={handleShare}
-            className="p-2 md:px-4 md:py-2 text-xs md:text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+            className="h-9 px-3 md:px-4 text-xs md:text-sm font-semibold border border-gray-200/80 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-2 transition-all"
           >
-            <i className="fas fa-share-nodes md:mr-2"></i>
+            <i className="fas fa-share-nodes text-brand-400"></i>
             <span className="hidden md:inline">Share</span>
           </button>
         </div>
@@ -402,28 +410,35 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             <TabButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} label="AI Summary & Notes" />
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/30">
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/20">
             {activeTab === 'transcript' && (
-              <div className="max-w-3xl mx-auto space-y-6 md:space-y-8 pb-10">
+              <div className="max-w-3xl mx-auto space-y-5 md:space-y-6 pb-10">
                 {meeting.transcript.length === 0 ? (
-                  <div className="text-center py-20 text-gray-400">No transcript available.</div>
-                ) : (
-                  meeting.transcript.map((p) => (
-                    <div key={p.id} className="flex gap-3 md:gap-4 group">
-                      <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 uppercase">
-                        {p.speaker.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs md:text-sm text-gray-900 truncate max-w-[120px]">{p.speaker}</span>
-                            <span className="text-[10px] md:text-xs text-gray-400 font-mono">{formatTime(p.timestamp)}</span>
-                          </div>
-                        </div>
-                        <p className="text-sm md:text-base text-gray-700 leading-relaxed">{p.text}</p>
-                      </div>
+                  <div className="text-center py-20 text-gray-400">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <i className="fas fa-quote-left text-2xl text-gray-200"></i>
                     </div>
-                  ))
+                    <p className="text-sm text-gray-400">No transcript available.</p>
+                  </div>
+                ) : (
+                  meeting.transcript.map((p, idx) => {
+                    const colors = ['bg-brand-100 text-brand-700', 'bg-purple-100 text-purple-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700'];
+                    const color = colors[p.speaker.charCodeAt(0) % colors.length];
+                    return (
+                      <div key={p.id} className="flex gap-3 md:gap-4 group animate-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
+                        <div className={`w-9 h-9 md:w-10 md:h-10 ${color} rounded-xl flex items-center justify-center font-bold text-xs shrink-0 uppercase shadow-sm`}>
+                          {p.speaker.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="font-bold text-xs md:text-sm text-gray-900">{p.speaker}</span>
+                            <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded-md">{formatTime(p.timestamp)}</span>
+                          </div>
+                          <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed bg-white p-3 md:p-4 rounded-xl rounded-tl-sm border border-gray-100/80 shadow-sm">{p.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             )}
@@ -432,55 +447,74 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
               <div className="max-w-3xl mx-auto pb-10">
                 {isGeneratingSummary ? (
                   <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                    <p className="text-sm text-gray-500 font-medium">AI is analyzing...</p>
+                    <div className="relative mb-6">
+                      <div className="w-14 h-14 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <i className="fas fa-sparkles text-brand-400 text-xs"></i>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500 font-semibold">AI is analyzing your meeting...</p>
+                    <p className="text-xs text-gray-400 mt-1">This usually takes a few seconds</p>
                   </div>
                 ) : (
-                  <div className="space-y-4 md:space-y-6">
-                    <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border border-gray-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <i className="fas fa-sparkles text-sm"></i>
-                          <span className="text-[10px] font-bold uppercase tracking-wider">AI Executive Summary</span>
+                  <div className="space-y-4 md:space-y-5">
+                    <div className="bg-white p-5 md:p-8 rounded-2xl md:rounded-3xl border border-gray-100/80 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-brand-50 rounded-lg flex items-center justify-center">
+                            <i className="fas fa-sparkles text-brand-500 text-xs"></i>
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-[0.15em] text-brand-600">AI Executive Summary</span>
                         </div>
+                        <button onClick={generateSummary} disabled={isGeneratingSummary} className="text-[10px] text-gray-400 hover:text-brand-500 font-bold uppercase tracking-wider transition-colors flex items-center gap-1">
+                          <i className="fas fa-rotate text-[9px]"></i> Regenerate
+                        </button>
                       </div>
                       <textarea
                         value={summary}
                         onChange={(e) => { setSummary(e.target.value); setHasUnsavedChanges(true); }}
-                        className="w-full text-gray-700 leading-relaxed text-sm md:text-lg min-h-[150px] resize-none focus:outline-none"
-                        placeholder="Meeting summary..."
+                        className="w-full text-gray-700 leading-relaxed text-sm md:text-base min-h-[150px] resize-none focus:outline-none placeholder:text-gray-300"
+                        placeholder="Meeting summary will appear here..."
+                        style={{ boxShadow: 'none' }}
                       />
                     </div>
 
-                    <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border border-gray-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-sm md:text-base text-gray-900 flex items-center gap-2">
-                          <i className="fas fa-list-check text-green-500"></i>
-                          Action Items
-                        </h3>
+                    <div className="bg-white p-5 md:p-8 rounded-2xl md:rounded-3xl border border-gray-100/80 shadow-sm">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+                            <i className="fas fa-list-check text-emerald-500 text-xs"></i>
+                          </div>
+                          <h3 className="font-bold text-sm text-gray-900">Action Items</h3>
+                          {actionItems.length > 0 && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{actionItems.length}</span>}
+                        </div>
                         <button
                           onClick={addActionItem}
-                          className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100"
+                          className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors"
                         >
-                          <i className="fas fa-plus text-xs"></i>
+                          <i className="fas fa-plus text-[10px]"></i>
                         </button>
                       </div>
 
-                      <div className="space-y-2 md:space-y-3">
+                      <div className="space-y-2.5">
                         {actionItems.length === 0 ? (
-                          <p className="text-xs text-gray-400 italic">No action items identified.</p>
+                          <p className="text-xs text-gray-300 italic py-2">No action items yet. Click + to add one.</p>
                         ) : (
                           actionItems.map((item, i) => (
-                            <div key={i} className="flex gap-2 group">
-                              <span className="w-5 h-5 md:w-6 md:h-6 bg-green-50 text-green-600 rounded-full flex items-center justify-center shrink-0 mt-1">
-                                <i className="fas fa-check text-[8px] md:text-[10px]"></i>
-                              </span>
+                            <div key={i} className="flex gap-3 group items-start">
+                              <div className="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0 mt-1.5 shadow-sm">
+                                <i className="fas fa-check text-[7px]"></i>
+                              </div>
                               <input
                                 type="text"
                                 value={item}
                                 onChange={(e) => updateActionItem(i, e.target.value)}
-                                className="flex-1 text-xs md:text-sm text-gray-600 border-b border-transparent focus:border-gray-100 focus:outline-none py-1"
+                                className="flex-1 text-sm text-gray-700 border-b border-transparent focus:border-brand-200 focus:outline-none py-1 transition-colors"
+                                style={{ boxShadow: 'none' }}
                               />
+                              <button onClick={() => removeActionItem(i)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 flex items-center justify-center transition-all mt-1">
+                                <i className="fas fa-xmark text-[10px]"></i>
+                              </button>
                             </div>
                           ))
                         )}
@@ -498,33 +532,36 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           flex-col bg-white w-full md:w-80 lg:w-96 border-l border-gray-100 shrink-0
           ${activeTab === 'chat' ? 'flex h-full' : 'hidden md:flex'}
         `}>
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-gray-100/80 bg-gradient-to-r from-brand-50/60 to-white flex items-center justify-between shrink-0">
             <div>
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <i className="fas fa-robot text-blue-500"></i>
+                <div className="w-7 h-7 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center shadow-sm shadow-brand-500/20">
+                  <i className="fas fa-robot text-white text-[10px]"></i>
+                </div>
                 Ask Lumina
               </h3>
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Meeting Assistant</p>
+              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest mt-0.5">Meeting AI Assistant</p>
             </div>
-            <button onClick={() => setActiveTab('transcript')} className="md:hidden text-gray-400 p-2">
-              <i className="fas fa-xmark"></i>
+            <button onClick={() => setActiveTab('transcript')} className="md:hidden w-8 h-8 rounded-xl text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors">
+              <i className="fas fa-xmark text-sm"></i>
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/20">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {chatHistory.length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-10 h-10 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <i className="fas fa-message text-sm"></i>
+              <div className="text-center py-10">
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-50 to-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                  <i className="fas fa-message text-brand-400"></i>
                 </div>
-                <p className="text-xs text-gray-500 font-medium">Ask about this meeting!</p>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Ask about this meeting</p>
+                <p className="text-[11px] text-gray-400">"What were the key decisions?"</p>
               </div>
             )}
             {chatHistory.map((chat, i) => (
-              <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] p-3 rounded-2xl text-xs md:text-sm ${chat.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-none'
-                  : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
+              <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+                <div className={`max-w-[88%] px-4 py-2.5 rounded-2xl text-xs md:text-sm leading-relaxed ${chat.role === 'user'
+                    ? 'bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-br-sm shadow-md shadow-brand-500/20'
+                    : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'
                   }`}>
                   {chat.text}
                 </div>
@@ -532,32 +569,33 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             ))}
             {isAsking && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-100 p-3 rounded-2xl rounded-bl-none shadow-sm">
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-75"></div>
-                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-150"></div>
+                <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm">
+                  <div className="flex gap-1.5 items-center">
+                    <div className="w-1.5 h-1.5 bg-brand-300 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          <form onSubmit={handleAskAI} className="p-4 border-t border-gray-100 bg-white">
-            <div className="relative">
+          <form onSubmit={handleAskAI} className="p-4 border-t border-gray-100/80 bg-gray-50/30">
+            <div className="relative flex items-center">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask something..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-4 pr-10 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                placeholder="Ask something about this meeting..."
+                className="w-full bg-white border border-gray-200/80 rounded-xl py-2.5 pl-4 pr-12 text-xs md:text-sm placeholder:text-gray-300 focus:border-brand-300 transition-all"
+                style={{ boxShadow: 'none' }}
               />
               <button
                 type="submit"
                 disabled={isAsking || !chatInput.trim()}
-                className="absolute right-1.5 top-1.5 w-7 h-7 bg-blue-600 text-white rounded-lg flex items-center justify-center disabled:opacity-50"
+                className="absolute right-1.5 w-8 h-8 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-lg flex items-center justify-center disabled:opacity-40 hover:from-brand-700 hover:to-brand-600 transition-all shadow-sm shadow-brand-500/20"
               >
-                <i className="fas fa-arrow-up text-xs"></i>
+                <i className="fas fa-arrow-up text-[10px]"></i>
               </button>
             </div>
           </form>
@@ -570,7 +608,9 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 const TabButton: React.FC<{ active: boolean, onClick: () => void, label: string }> = ({ active, onClick, label }) => (
   <button
     onClick={onClick}
-    className={`flex-1 md:flex-none px-4 py-4 text-[11px] md:text-sm font-bold border-b-2 transition-colors ${active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+    className={`flex-1 md:flex-none px-4 py-4 text-[11px] md:text-xs font-bold border-b-2 transition-all uppercase tracking-wider ${active
+      ? 'border-brand-500 text-brand-600'
+      : 'border-transparent text-gray-400 hover:text-gray-600'
       }`}
   >
     {label}

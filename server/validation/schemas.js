@@ -71,6 +71,8 @@ export const ShareMeetingInputSchema = z.object({
 export const TranscribeAudioInputSchema = z.object({
   audioData: z.string().min(1, 'Audio data is required'),
   mimeType: z.string().regex(/^audio\//, 'Invalid audio mime type'),
+  fileName: z.string().optional(),
+  language: z.string().optional().default('en'), // BCP-47 language code, e.g. 'en', 'es', 'fr', 'auto'
 });
 
 export const GenerateSummaryInputSchema = z.object({

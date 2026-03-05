@@ -24,7 +24,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setError(null);
 
     if (!isSupabaseConfigured()) {
-      // Fallback mock for development without Supabase
       setIsLoading(true);
       setTimeout(() => {
         onLogin({
@@ -52,8 +51,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         setError(error.message);
         setIsLoading(false);
       }
-      // If successful, the page will redirect to Google and back
-      // The onAuthStateChange listener in App.tsx will handle the session
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google');
       setIsLoading(false);
@@ -66,7 +63,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setMessage(null);
 
     if (!isSupabaseConfigured()) {
-      // Fallback mock for development without Supabase
       setIsLoading(true);
       setTimeout(() => {
         onLogin({
@@ -85,7 +81,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     try {
       const supabase = getSupabaseClient();
       if (mode === 'signup') {
-        // Sign up with email/password
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -100,12 +95,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         if (error) {
           setError(error.message);
         } else if (data.user && !data.session) {
-          // Email confirmation required
           setMessage('Check your email for a confirmation link to complete sign up.');
         }
-        // If session exists, onAuthStateChange in App.tsx handles it
       } else {
-        // Sign in with email/password
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -114,7 +106,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         if (error) {
           setError(error.message);
         }
-        // If successful, onAuthStateChange in App.tsx handles the session
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
@@ -129,7 +120,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setMessage(null);
 
     if (!isSupabaseConfigured()) {
-      // Fallback mock
       setIsLoading(true);
       setTimeout(() => {
         onLogin({
@@ -149,7 +139,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     try {
       const supabase = getSupabaseClient();
       if (mode === 'phone') {
-        // Send OTP
         const { error } = await supabase.auth.signInWithOtp({
           phone
         });
@@ -161,7 +150,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
           setMessage('A verification code has been sent to your phone.');
         }
       } else if (mode === 'otp_verify') {
-        // Verify OTP
         const { error } = await supabase.auth.verifyOtp({
           phone,
           token: otpCode,
@@ -171,7 +159,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         if (error) {
           setError(error.message);
         }
-        // If successful, onAuthStateChange in App.tsx handles the session
       }
     } catch (err: any) {
       setError(err.message || 'Phone authentication failed');
@@ -189,98 +176,120 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-blue-50 rounded-full -mr-24 md:-mr-48 -mt-24 md:-mt-48 blur-3xl opacity-50"></div>
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-purple-50 rounded-full -ml-24 md:-ml-48 -mb-24 md:-mb-48 blur-3xl opacity-50"></div>
+    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
+      {/* Floating orbs */}
+      <div className="absolute top-20 right-20 w-72 h-72 bg-brand-300/20 rounded-full blur-3xl animate-float"></div>
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-purple-300/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-200/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }}></div>
 
-      <div className="w-full max-w-md z-10">
-        <div className="text-center mb-6 md:mb-10">
-          <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 md:mb-6 shadow-xl shadow-blue-200">
-            <i className="fas fa-microphone-lines text-xl md:text-2xl"></i>
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.015]" style={{
+        backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)',
+        backgroundSize: '32px 32px'
+      }}></div>
+
+      <div className="w-full max-w-[420px] z-10 animate-scale-in">
+        {/* Logo + Heading */}
+        <div className="text-center mb-8 md:mb-10">
+          <div className="relative inline-block">
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl flex items-center justify-center text-white mx-auto mb-5 shadow-2xl shadow-brand-500/30 animate-glow">
+              <i className="fas fa-microphone-lines text-2xl"></i>
+            </div>
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-[3px] border-white flex items-center justify-center">
+              <i className="fas fa-sparkles text-[6px] text-white"></i>
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">Welcome to Lumina</h1>
-          <p className="text-sm md:text-base text-gray-500">Your meetings, intelligently captured.</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Welcome to <span className="gradient-text">Lumina</span></h1>
+          <p className="text-sm md:text-base text-gray-500 font-medium">Your meetings, intelligently captured.</p>
         </div>
 
-        <div className="bg-white p-6 md:p-8 rounded-[30px] md:rounded-[40px] border border-gray-100 shadow-2xl shadow-gray-200/50">
+        {/* Auth Card */}
+        <div className="glass p-7 md:p-8 rounded-[28px] border border-white/40 shadow-2xl shadow-gray-900/5">
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-start gap-2">
-              <i className="fas fa-exclamation-circle mt-0.5 shrink-0"></i>
-              <span>{error}</span>
+            <div className="mb-5 p-3.5 bg-red-50/80 backdrop-blur border border-red-100 rounded-2xl text-sm text-red-600 flex items-start gap-2.5 animate-slide-down">
+              <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <i className="fas fa-exclamation text-[8px]"></i>
+              </div>
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
           {/* Success/Info Message */}
           {message && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700 flex items-start gap-2">
-              <i className="fas fa-check-circle mt-0.5 shrink-0"></i>
-              <span>{message}</span>
+            <div className="mb-5 p-3.5 bg-emerald-50/80 backdrop-blur border border-emerald-100 rounded-2xl text-sm text-emerald-700 flex items-start gap-2.5 animate-slide-down">
+              <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <i className="fas fa-check text-[8px]"></i>
+              </div>
+              <span className="font-medium">{message}</span>
             </div>
           )}
 
           {mode !== 'otp_verify' && (
             <>
-              <div className="flex bg-gray-50 p-1.5 rounded-2xl mb-6 md:mb-8">
+              {/* Tab Switcher */}
+              <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-7">
                 <button
                   onClick={() => { setMode('login'); setError(null); setMessage(null); }}
-                  className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-xl transition-all ${mode === 'login' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${mode === 'login' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   Log In
                 </button>
                 <button
                   onClick={() => { setMode('signup'); setError(null); setMessage(null); }}
-                  className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-xl transition-all ${mode === 'signup' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${mode === 'signup' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   Sign Up
                 </button>
               </div>
 
-              <div className="space-y-3 mb-6 md:mb-8">
+              {/* Social Login */}
+              <div className="space-y-3 mb-7">
                 <button
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 md:gap-3 py-2.5 md:py-3 border border-gray-100 rounded-2xl font-bold text-xs md:text-sm text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 py-3 bg-white border border-gray-200/80 rounded-2xl font-semibold text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-300/80 transition-all disabled:opacity-50 shadow-sm hover:shadow"
                 >
-                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4 md:w-5 md:h-5" alt="Google" />
+                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
                   Continue with Google
                 </button>
                 <button
                   disabled
-                  className="w-full flex items-center justify-center gap-2 md:gap-3 py-2.5 md:py-3 bg-gray-900 text-white rounded-2xl font-bold text-xs md:text-sm transition-all opacity-50 cursor-not-allowed relative"
+                  className="w-full flex items-center justify-center gap-3 py-3 bg-gray-900 text-white rounded-2xl font-semibold text-sm transition-all opacity-40 cursor-not-allowed relative"
                 >
-                  <i className="fas fa-phone-alt"></i>
+                  <i className="fas fa-phone-alt text-xs"></i>
                   Continue with Phone
-                  <span className="absolute right-3 text-[8px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider">Soon</span>
+                  <span className="absolute right-3 text-[8px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Soon</span>
                 </button>
               </div>
 
-              <div className="relative mb-6 md:mb-8">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-                <div className="relative flex justify-center text-[8px] md:text-[10px] uppercase"><span className="bg-white px-4 text-gray-400 font-bold tracking-widest">Or email</span></div>
+              {/* Divider */}
+              <div className="relative mb-7">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200/60"></div></div>
+                <div className="relative flex justify-center text-[9px] uppercase"><span className="glass px-5 text-gray-400 font-bold tracking-[0.2em]">Or email</span></div>
               </div>
             </>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div>
-                <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Full Name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                 />
               </div>
             )}
 
             {mode === 'otp_verify' ? (
               <div>
-                <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Verification Code</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Verification Code</label>
                 <input
                   type="text"
                   required
@@ -288,31 +297,31 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
                   onChange={(e) => setOtpCode(e.target.value)}
                   placeholder="Enter 6-digit code"
                   maxLength={6}
-                  className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm focus:ring-2 focus:ring-blue-500/20 text-center text-lg tracking-[0.5em]"
+                  className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm text-center text-lg tracking-[0.5em] placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => { setMode('login'); setOtpCode(''); setError(null); setMessage(null); }}
-                  className="text-xs text-blue-600 font-bold mt-2 hover:underline"
+                  className="text-xs text-brand-600 font-bold mt-3 hover:underline"
                 >
                   ← Back to login
                 </button>
               </div>
             ) : mode === 'phone' ? (
               <div>
-                <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Phone Number</label>
                 <input
                   type="tel"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => { setMode('login'); setError(null); setMessage(null); }}
-                  className="text-xs text-blue-600 font-bold mt-2 hover:underline"
+                  className="text-xs text-brand-600 font-bold mt-3 hover:underline"
                 >
                   ← Back to email login
                 </button>
@@ -320,34 +329,35 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
             ) : (
               <>
                 <div>
-                  <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Email Address</label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@company.com"
-                    className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Password</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Password</label>
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl py-2.5 md:py-3 px-4 text-xs md:text-sm focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                   />
                 </div>
               </>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 md:py-4 bg-blue-600 text-white rounded-xl md:rounded-2xl font-bold text-xs md:text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+              className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-2xl font-bold text-sm hover:from-brand-700 hover:to-brand-600 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
             >
               {isLoading && <i className="fas fa-circle-notch fa-spin"></i>}
               {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : mode === 'phone' ? 'Send Code' : 'Verify Code'}
@@ -355,8 +365,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
           </form>
         </div>
 
-        <p className="text-center mt-6 md:mt-10 text-[10px] md:text-xs text-gray-400 leading-relaxed px-4 md:px-8">
-          By continuing, you agree to Lumina's <span className="text-gray-600 font-bold hover:underline cursor-pointer">Terms</span> and <span className="text-gray-600 font-bold hover:underline cursor-pointer">Privacy</span>.
+        {/* Footer */}
+        <p className="text-center mt-8 text-[11px] text-gray-400 leading-relaxed px-4">
+          By continuing, you agree to Lumina's <span className="text-gray-600 font-semibold hover:underline cursor-pointer">Terms</span> and <span className="text-gray-600 font-semibold hover:underline cursor-pointer">Privacy</span>.
         </p>
       </div>
     </div>

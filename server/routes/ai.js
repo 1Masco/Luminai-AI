@@ -19,6 +19,8 @@ const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 const DEFAULT_TRANSCRIPTION_MODEL = process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1';
 const GEMINI_API_BASE_URL = process.env.GEMINI_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const DEEPGRAM_API_BASE_URL = 'https://api.deepgram.com/v1';
+const DEFAULT_DEEPGRAM_MODEL = process.env.DEEPGRAM_MODEL || 'nova-2';
 const AI_PROVIDER_MODE = (process.env.AI_PROVIDER_MODE || 'balanced').toLowerCase();
 const AI_PROVIDER_COOLDOWN_MS = Math.max(30000, Number(process.env.AI_PROVIDER_COOLDOWN_MS || 600000));
 const SENTIMENT_VALUES = ['positive', 'neutral', 'negative'];
@@ -32,11 +34,13 @@ const STOP_WORDS = new Set([
 
 let providerRoundRobinCursor = 0;
 const providerCooldownState = {
+  deepgram: { until: 0, reason: '' },
   openai: { until: 0, reason: '' },
   gemini: { until: 0, reason: '' },
 };
 
 const isProviderConfigured = (provider) => {
+  if (provider === 'deepgram') return Boolean(process.env.DEEPGRAM_API_KEY);
   if (provider === 'openai') return Boolean(process.env.OPENAI_API_KEY);
   if (provider === 'gemini') return Boolean(getGeminiApiKey());
   return false;
@@ -57,14 +61,16 @@ const setProviderCooldown = (provider, reason) => {
 };
 
 const getProviderOrder = () => {
-  const configured = ['openai', 'gemini'].filter(isProviderConfigured);
+  const configured = ['deepgram', 'openai', 'gemini'].filter(isProviderConfigured);
   if (configured.length === 0) return [];
 
   let ordered;
   if (AI_PROVIDER_MODE === 'openai_primary') {
-    ordered = ['openai', 'gemini'].filter((provider) => configured.includes(provider));
+    ordered = ['openai', 'deepgram', 'gemini'].filter((p) => configured.includes(p));
   } else if (AI_PROVIDER_MODE === 'gemini_primary') {
-    ordered = ['gemini', 'openai'].filter((provider) => configured.includes(provider));
+    ordered = ['gemini', 'deepgram', 'openai'].filter((p) => configured.includes(p));
+  } else if (AI_PROVIDER_MODE === 'deepgram_primary') {
+    ordered = ['deepgram', 'openai', 'gemini'].filter((p) => configured.includes(p));
   } else {
     const startIndex = providerRoundRobinCursor % configured.length;
     providerRoundRobinCursor += 1;
@@ -208,10 +214,10 @@ const requestGeminiGenerateContent = async ({
     },
     ...(systemInstruction
       ? {
-          system_instruction: {
-            parts: [{ text: systemInstruction }],
-          },
-        }
+        system_instruction: {
+          parts: [{ text: systemInstruction }],
+        },
+      }
       : {}),
   };
 
@@ -346,6 +352,83 @@ const transcribeWithGemini = async ({ audioData, mimeType, fileName }) => {
   };
 };
 
+/**
+ * Deepgram Nova-2 transcription with native speaker diarization
+ * Uses the Deepgram REST API directly (no SDK required)
+ */
+const transcribeWithDeepgram = async ({ audioBuffer, mimeType, fileName, language = 'en' }) => {
+  const apiKey = process.env.DEEPGRAM_API_KEY;
+  if (!apiKey) {
+    throw new AppError('Deepgram API not configured', 503, 'DEEPGRAM_NOT_CONFIGURED');
+  }
+
+  const params = new URLSearchParams({
+    model: DEFAULT_DEEPGRAM_MODEL,
+    diarize: 'true',          // speaker detection: Speaker 0, Speaker 1, ...
+    punctuate: 'true',        // adds proper sentence punctuation
+    smart_format: 'true',     // formats numbers, dates, etc.
+    utterances: 'true',       // groups by speaker utterances
+    paragraphs: 'true',       // natural paragraph breaks
+    filler_words: 'false',    // remove ums/uhs
+    language,                 // auto or specific language code
+  });
+
+  const url = `${DEEPGRAM_API_BASE_URL}/listen?${params}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${apiKey}`,
+      'Content-Type': mimeType || 'audio/webm',
+    },
+    body: audioBuffer,
+  });
+
+  const raw = await response.text();
+  const data = raw ? parseJsonString(raw, {}) : {};
+
+  if (!response.ok) {
+    const errMsg = data?.err_msg || data?.message || `Deepgram request failed with status ${response.status}`;
+    if (response.status === 401 || response.status === 403) {
+      throw new AppError('Deepgram API key is invalid or unauthorized. Update DEEPGRAM_API_KEY in server/.env.', 401, 'DEEPGRAM_AUTH_ERROR');
+    }
+    if (response.status === 402) {
+      throw new AppError('Deepgram quota exceeded. Falling back to next provider.', 429, 'DEEPGRAM_RATE_LIMITED');
+    }
+    throw new AppError(errMsg, 502, 'DEEPGRAM_UPSTREAM_ERROR');
+  }
+
+  // Parse Deepgram's utterance-based diarized output
+  const utterances = Array.isArray(data?.results?.utterances) ? data.results.utterances : [];
+  const channels = data?.results?.channels || [];
+  const rawTranscript = channels?.[0]?.alternatives?.[0]?.transcript || '';
+  const durationSeconds = Math.round(data?.metadata?.duration || Math.max(60, utterances.length * 5));
+
+  let transcript = [];
+  if (utterances.length > 0) {
+    // Use proper diarized utterances — who said what
+    transcript = utterances.map((u, idx) => ({
+      speaker: `Speaker ${(u.speaker ?? idx) + 1}`,
+      text: (u.transcript || '').trim(),
+      timestamp: Math.round(u.start || idx * 5),
+    })).filter(u => u.text.length > 0);
+  } else if (rawTranscript) {
+    // Fallback: single-speaker plain transcript
+    transcript = [{ speaker: 'Speaker 1', text: rawTranscript.trim(), timestamp: 0 }];
+  }
+
+  return { transcript, durationSeconds, rawTranscript };
+};
+
+const isDeepgramUnavailableError = (error) =>
+  error instanceof AppError &&
+  ['DEEPGRAM_RATE_LIMITED', 'DEEPGRAM_AUTH_ERROR', 'DEEPGRAM_NOT_CONFIGURED'].includes(error.code);
+
+const isDeepgramFailoverError = (error) =>
+  isDeepgramUnavailableError(error) ||
+  (error instanceof AppError && (error.code === 'DEEPGRAM_UPSTREAM_ERROR' || error.statusCode >= 500)) ||
+  !(error instanceof AppError);
+
 const isOpenAIUnavailableError = (error) =>
   error instanceof AppError &&
   ['OPENAI_RATE_LIMITED', 'OPENAI_AUTH_ERROR', 'OPENAI_NOT_CONFIGURED'].includes(error.code);
@@ -369,6 +452,10 @@ const isProviderUnavailableError = (error) =>
   [
     'AI_NOT_CONFIGURED',
     'AI_PROVIDER_UNAVAILABLE',
+    'DEEPGRAM_RATE_LIMITED',
+    'DEEPGRAM_AUTH_ERROR',
+    'DEEPGRAM_NOT_CONFIGURED',
+    'DEEPGRAM_UPSTREAM_ERROR',
     'OPENAI_RATE_LIMITED',
     'OPENAI_AUTH_ERROR',
     'OPENAI_NOT_CONFIGURED',
@@ -380,6 +467,7 @@ const isProviderUnavailableError = (error) =>
   ].includes(error.code);
 
 const shouldTryNextProvider = (provider, error) => {
+  if (provider === 'deepgram') return isDeepgramFailoverError(error);
   if (provider === 'openai') return isOpenAIFailoverError(error);
   if (provider === 'gemini') return isGeminiFailoverError(error);
   return false;
@@ -388,13 +476,14 @@ const shouldTryNextProvider = (provider, error) => {
 const runWithProviderSelection = async ({
   requestId,
   operationName,
+  deepgramFn,
   openaiFn,
   geminiFn,
 }) => {
   const providerOrder = getProviderOrder();
   if (providerOrder.length === 0) {
     throw new AppError(
-      'AI providers are not configured. Set OPENAI_API_KEY and/or GEMINI_API_KEY in server/.env.',
+      'AI providers are not configured. Set DEEPGRAM_API_KEY, OPENAI_API_KEY, and/or GEMINI_API_KEY in server/.env.',
       503,
       'AI_NOT_CONFIGURED'
     );
@@ -402,7 +491,7 @@ const runWithProviderSelection = async ({
 
   let lastError = null;
   for (const provider of providerOrder) {
-    const fn = provider === 'openai' ? openaiFn : geminiFn;
+    const fn = provider === 'deepgram' ? deepgramFn : provider === 'openai' ? openaiFn : geminiFn;
     if (typeof fn !== 'function') continue;
 
     try {
@@ -589,7 +678,7 @@ router.post(
 
 /**
  * POST /api/ai/transcribe-audio
- * Transcribe audio via selected AI provider and return meeting-style structured output
+ * Transcribe audio using Deepgram Nova-2 (primary, with diarization) or Whisper (fallback) or Gemini
  * Body: { audioData, mimeType, fileName? }
  */
 router.post(
@@ -598,12 +687,12 @@ router.post(
   asyncHandler(async (req, res) => {
     const { audioData, mimeType, fileName } = req.body;
 
-    logger.info('Transcription request', { fileName, requestId: req.id });
+    logger.info('Transcription request', { fileName, mimeType, requestId: req.id });
 
     try {
-      const safeMimeType = mimeType || 'audio/mpeg';
-      const extension = safeMimeType.split('/')[1]?.split(';')[0] || 'mp3';
-      const safeFileName = fileName || `audio.${extension}`;
+      const safeMimeType = mimeType || 'audio/webm';
+      const extension = safeMimeType.split('/')[1]?.split(';')[0] || 'webm';
+      const safeFileName = fileName || `recording.${extension}`;
 
       let audioBuffer;
       try {
@@ -616,68 +705,160 @@ router.post(
         throw new AppError('Audio payload is empty', 400, 'EMPTY_AUDIO_PAYLOAD');
       }
 
+      // ── Deepgram transcription helper ──────────────────────────────────────
+      const runDeepgramTranscription = async () => {
+        const { transcript, durationSeconds, rawTranscript } = await transcribeWithDeepgram({
+          audioBuffer,
+          mimeType: safeMimeType,
+          fileName: safeFileName,
+          language: req.body.language || 'en',
+        });
+
+        const combinedTranscript = transcript.map((p) => `${p.speaker}: ${p.text}`).join('\n');
+        const summaryData = combinedTranscript
+          ? await summarizeText(combinedTranscript, 'meeting transcript', req.id)
+          : { summary: 'Transcription complete.', actionItems: [], sentiment: 'neutral', aiProvider: 'none' };
+
+        // Generate a smart title from the transcript
+        let title = safeFileName.replace(/\.[^/.]+$/, '');
+        if (combinedTranscript.length > 50) {
+          try {
+            const titleResult = await requestGeminiGenerateContent({
+              temperature: 0.3,
+              parts: [{ text: `Generate a short (3-6 word) meeting title from this transcript. Return ONLY the title, no quotes:\n\n${combinedTranscript.slice(0, 1000)}` }],
+            });
+            if (titleResult && titleResult.trim().length > 2) {
+              title = titleResult.trim().replace(/^["']|["']$/g, '');
+            }
+          } catch (_e) { /* keep filename-based title */ }
+        }
+
+        return {
+          title,
+          transcript,
+          summary: summaryData.summary,
+          actionItems: summaryData.actionItems,
+          sentiment: summaryData.sentiment,
+          durationSeconds,
+          transcriptionProvider: 'deepgram',
+          summaryProvider: summaryData.aiProvider,
+          speakerCount: new Set(transcript.map(t => t.speaker)).size,
+        };
+      };
+
+      // ── Whisper transcription helper (with GPT speaker inference) ──────────
+      const runWhisperTranscription = async () => {
+        const formData = new FormData();
+        formData.append('file', new Blob([audioBuffer], { type: safeMimeType }), safeFileName);
+        formData.append('model', DEFAULT_TRANSCRIPTION_MODEL);
+        formData.append('response_format', 'verbose_json');
+        formData.append('timestamp_granularities[]', 'segment');
+        formData.append('temperature', '0');
+
+        const transcription = await requestOpenAI({ path: '/audio/transcriptions', body: formData });
+
+        const rawTranscript = typeof transcription?.text === 'string' ? transcription.text.trim() : '';
+        const segments = Array.isArray(transcription?.segments) ? transcription.segments : [];
+
+        // Build initial transcript (single speaker)
+        let transcript = segments.length > 0
+          ? segments
+            .filter((s) => typeof s?.text === 'string' && s.text.trim())
+            .map((s, idx) => ({
+              speaker: 'Speaker 1',
+              text: s.text.trim(),
+              timestamp: Number.isFinite(s.start) ? Math.max(0, Math.round(s.start)) : idx * 5,
+            }))
+          : rawTranscript ? [{ speaker: 'Speaker 1', text: rawTranscript, timestamp: 0 }] : [];
+
+        const durationSeconds = Number.isFinite(transcription?.duration)
+          ? Math.max(1, Math.round(transcription.duration))
+          : Math.max(60, transcript.length * 8);
+
+        // ── GPT speaker diarization inference ──
+        // Ask GPT to infer speaker names/labels from context
+        if (transcript.length > 1 && process.env.OPENAI_API_KEY) {
+          try {
+            const numberedLines = transcript.map((t, i) => `${i + 1}. ${t.text}`).join('\n');
+            const diarizationPrompt = [
+              'You are a meeting transcript analyst. Given the transcript lines below, infer which lines likely belong to different speakers.',
+              'Assign speaker labels like "Alex", "Sarah", "Host", "Guest", etc. based on context clues (questions vs answers, topic shifts, etc.).',
+              'Return ONLY a JSON array like: [{"line": 1, "speaker": "Alex"}, ...]',
+              'Every line must have an entry. Use 2-4 distinct speaker names.',
+              '',
+              'Transcript:',
+              numberedLines,
+            ].join('\n');
+
+            const completion = await requestOpenAI({
+              path: '/chat/completions',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: DEFAULT_CHAT_MODEL,
+                temperature: 0.1,
+                response_format: { type: 'json_object' },
+                messages: [
+                  { role: 'system', content: 'Return JSON with key "diarization" containing an array of {line, speaker} objects.' },
+                  { role: 'user', content: diarizationPrompt },
+                ],
+              }),
+            });
+
+            const parsed = parseJsonString(getTextFromCompletion(completion), {});
+            const diarization = Array.isArray(parsed.diarization) ? parsed.diarization : [];
+            if (diarization.length > 0) {
+              const speakerMap = {};
+              diarization.forEach(({ line, speaker }) => { speakerMap[line] = speaker; });
+              transcript = transcript.map((t, i) => ({
+                ...t,
+                speaker: speakerMap[i + 1] || t.speaker,
+              }));
+            }
+          } catch (diarizationErr) {
+            logger.warn('Speaker diarization inference failed, using single-speaker', { error: diarizationErr.message, requestId: req.id });
+          }
+        }
+
+        const combinedTranscript = transcript.map((p) => `${p.speaker}: ${p.text}`).join('\n');
+        const summaryData = combinedTranscript
+          ? await summarizeText(combinedTranscript, 'meeting transcript', req.id)
+          : { summary: 'Transcription complete.', actionItems: [], sentiment: 'neutral', aiProvider: 'none' };
+
+        return {
+          title: safeFileName.replace(/\.[^/.]+$/, ''),
+          transcript,
+          summary: summaryData.summary,
+          actionItems: summaryData.actionItems,
+          sentiment: summaryData.sentiment,
+          durationSeconds,
+          transcriptionProvider: 'whisper',
+          summaryProvider: summaryData.aiProvider,
+          speakerCount: new Set(transcript.map(t => t.speaker)).size,
+        };
+      };
+
+      // ── Provider waterfall: Deepgram → Whisper → Gemini ───────────────────
       const { result, provider } = await runWithProviderSelection({
         requestId: req.id,
         operationName: 'transcription',
-        openaiFn: async () => {
-          const formData = new FormData();
-          formData.append('file', new Blob([audioBuffer], { type: safeMimeType }), safeFileName);
-          formData.append('model', DEFAULT_TRANSCRIPTION_MODEL);
-          formData.append('response_format', 'verbose_json');
-          formData.append('temperature', '0');
-
-          const transcription = await requestOpenAI({
-            path: '/audio/transcriptions',
-            body: formData,
-          });
-
-          const rawTranscript = typeof transcription?.text === 'string' ? transcription.text.trim() : '';
-          const segments = Array.isArray(transcription?.segments) ? transcription.segments : [];
-          const transcript =
-            segments.length > 0
-              ? segments
-                  .filter((segment) => typeof segment?.text === 'string' && segment.text.trim())
-                  .map((segment, index) => ({
-                    speaker: 'Speaker 1',
-                    text: segment.text.trim(),
-                    timestamp: Number.isFinite(segment.start) ? Math.max(0, Math.round(segment.start)) : index * 5,
-                  }))
-              : rawTranscript
-                ? [{ speaker: 'Speaker 1', text: rawTranscript, timestamp: 0 }]
-                : [];
-
-          const durationSeconds = Number.isFinite(transcription?.duration)
-            ? Math.max(1, Math.round(transcription.duration))
-            : Math.max(60, transcript.length * 8);
-
-          const combinedTranscript = transcript.map((part) => `${part.speaker}: ${part.text}`).join('\n');
-          const summaryData = combinedTranscript
-            ? await summarizeText(combinedTranscript, 'meeting transcript', req.id)
-            : { summary: 'Transcription complete.', actionItems: [], sentiment: 'neutral', aiProvider: 'none' };
-
-          return {
-            title: safeFileName.replace(/\.[^/.]+$/, ''),
-            transcript,
-            summary: summaryData.summary,
-            actionItems: summaryData.actionItems,
-            sentiment: summaryData.sentiment,
-            durationSeconds,
-            summaryProvider: summaryData.aiProvider,
-          };
-        },
+        deepgramFn: isProviderConfigured('deepgram') ? runDeepgramTranscription : undefined,
+        openaiFn: isProviderConfigured('openai') ? runWhisperTranscription : undefined,
         geminiFn: () => transcribeWithGemini({ audioData, mimeType: safeMimeType, fileName: safeFileName }),
       });
 
-      logger.info('Transcription successful', { fileName, requestId: req.id });
-
-      res.json({
-        ...result,
-        aiProvider: provider,
+      logger.info('Transcription successful', {
+        fileName,
+        transcriptionProvider: result.transcriptionProvider || provider,
+        speakerCount: result.speakerCount,
+        requestId: req.id,
       });
+
+      res.json({ ...result, aiProvider: provider });
+
     } catch (error) {
       if (isProviderUnavailableError(error)) {
         throw new AppError(
-          'AI transcription is unavailable because both OpenAI and Gemini are currently unavailable or out of quota.',
+          'AI transcription is unavailable. Please set DEEPGRAM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in server/.env.',
           503,
           'AI_TRANSCRIPTION_UNAVAILABLE'
         );

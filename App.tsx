@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | { name: string, url: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pendingMeetingTitle, setPendingMeetingTitle] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const savedMeetings = localStorage.getItem('lumina_meetings');
@@ -132,6 +133,13 @@ const App: React.FC = () => {
   }, [meetings]);
 
   const handleStartRecording = () => {
+    setPendingMeetingTitle(undefined);
+    setCurrentView(AppView.RECORDING);
+    setIsSidebarOpen(false);
+  };
+
+  const handleJoinAndRecord = (meetingTitle: string) => {
+    setPendingMeetingTitle(meetingTitle);
     setCurrentView(AppView.RECORDING);
     setIsSidebarOpen(false);
   };
@@ -269,7 +277,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === AppView.RECORDING && (
-            <RecordingSession onFinish={handleFinishProcessing} onCancel={() => navigateTo(AppView.DASHBOARD)} />
+            <RecordingSession onFinish={handleFinishProcessing} onCancel={() => navigateTo(AppView.DASHBOARD)} meetingTitle={pendingMeetingTitle} />
           )}
 
           {currentView === AppView.PROCESSING && pendingFile && (
@@ -286,6 +294,7 @@ const App: React.FC = () => {
           {currentView === AppView.CALENDAR && (
             <CalendarSync
               onBack={() => navigateTo(AppView.DASHBOARD)}
+              onJoinAndRecord={handleJoinAndRecord}
             />
           )}
 
