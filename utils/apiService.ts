@@ -277,6 +277,49 @@ class APIService {
 
         return response.json();
     }
+
+    // =============================================
+    // MEETING COACH / ANALYTICS
+    // =============================================
+
+    /**
+     * Analyze a meeting transcript with AI Meeting Coach
+     * Returns talk-time, filler words, pace, sentiment, health score, and tips
+     */
+    async analyzeMeeting(transcript: Array<{ speaker: string; text: string; timestamp: number; id?: string }>, duration?: number) {
+        const response = await fetch(`${this.baseURL}/api/ai/analyze-meeting`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ transcript, duration: duration || 0 })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Meeting analysis failed'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Generate smart follow-up: assigned actions, deadlines, key decisions, and email draft
+     */
+    async generateFollowUp(transcript: Array<{ speaker: string; text: string; timestamp: number; id?: string }>, title?: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/generate-follow-up`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ transcript, title: title || 'Meeting' })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Follow-up generation failed'));
+        }
+
+        return response.json();
+    }
 }
 
 export const apiService = new APIService();

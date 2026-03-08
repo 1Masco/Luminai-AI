@@ -6,6 +6,63 @@ export interface TranscriptPart {
   timestamp: number;
 }
 
+export interface SpeakerTalkTime {
+  seconds: number;
+  percentage: number;
+  wordCount: number;
+}
+
+export interface SpeakerFillerWords {
+  [word: string]: number;
+  total: number;
+}
+
+export interface SpeakerPace {
+  wordsPerMinute: number;
+  rating: 'slow' | 'moderate' | 'fast';
+}
+
+export interface HealthFactors {
+  balanced: boolean;
+  engagementLevel: 'low' | 'moderate' | 'high';
+  balanceScore: number;
+  fillerWordScore: number;
+  paceScore: number;
+  sentimentScore: number;
+}
+
+export interface MeetingAnalytics {
+  talkTime: Record<string, SpeakerTalkTime>;
+  fillerWords: Record<string, SpeakerFillerWords>;
+  speakingPace: Record<string, SpeakerPace>;
+  speakerSentiment: Record<string, 'positive' | 'neutral' | 'negative'>;
+  healthScore: number;
+  healthFactors: HealthFactors;
+  coachTips: string[];
+  analyzedAt: string;
+}
+
+export interface AssignedAction {
+  task: string;
+  assignee: string;
+  deadline: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface DetectedDeadline {
+  text: string;
+  context: string;
+  speaker: string;
+}
+
+export interface FollowUpData {
+  assignedActions: AssignedAction[];
+  keyDecisions: string[];
+  followUpEmail: { subject: string; body: string };
+  deadlinesDetected: DetectedDeadline[];
+  generatedAt: string;
+}
+
 export interface Meeting {
   id: string;
   title: string;
@@ -16,7 +73,12 @@ export interface Meeting {
   actionItems?: string[];
   sentiment?: 'positive' | 'neutral' | 'negative';
   sharedBy?: string;
+  analytics?: MeetingAnalytics;
+  meeting_analytics?: MeetingAnalytics;
+  followUp?: FollowUpData;
+  follow_up_data?: FollowUpData;
 }
+
 
 export interface Note {
   id: string;
@@ -60,5 +122,6 @@ export enum AppView {
   NOTES = 'notes',
   SHARED = 'shared',
   PROFILE = 'profile',
-  AUTH = 'auth'
+  AUTH = 'auth',
+  ANALYTICS = 'analytics'
 }

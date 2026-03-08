@@ -12,6 +12,7 @@ import SharedView from './components/SharedView';
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import BottomNav from './components/BottomNav';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
 const App: React.FC = () => {
@@ -310,6 +311,10 @@ const App: React.FC = () => {
 
           {currentView === AppView.SHARED && (
             <SharedView onViewMeeting={handleViewMeeting} />
+          )}
+
+          {currentView === AppView.ANALYTICS && (
+            <AnalyticsDashboard meetings={meetings} />
           )}
 
           {currentView === AppView.PROFILE && (

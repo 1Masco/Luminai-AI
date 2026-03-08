@@ -83,7 +83,7 @@ router.post(
   validateRequest(CreateMeetingInputSchema),
   asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const { title, date, duration, transcript, summary, actionItems, sentiment } = req.body;
+    const { title, date, duration, transcript, summary, actionItems, sentiment, meetingAnalytics, followUpData } = req.body;
 
     logger.info('Creating meeting', { title, userId, requestId: req.id });
 
@@ -98,6 +98,8 @@ router.post(
         summary,
         action_items: actionItems, // Use action_items for DB column
         sentiment,
+        meeting_analytics: meetingAnalytics || null,
+        follow_up_data: followUpData || null,
       })
       .select()
       .single();
@@ -125,7 +127,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
-    const { title, date, duration, transcript, summary, actionItems, sentiment } = req.body;
+    const { title, date, duration, transcript, summary, actionItems, sentiment, meetingAnalytics, followUpData } = req.body;
 
     logger.info('Updating meeting', { meetingId: id, userId, requestId: req.id });
 
@@ -137,6 +139,8 @@ router.put(
     if (summary !== undefined) updates.summary = summary;
     if (actionItems !== undefined) updates.action_items = actionItems; // Use action_items for DB column
     if (sentiment !== undefined) updates.sentiment = sentiment;
+    if (meetingAnalytics !== undefined) updates.meeting_analytics = meetingAnalytics;
+    if (followUpData !== undefined) updates.follow_up_data = followUpData;
 
     const { data: meeting, error } = await supabase
       .from('meetings')

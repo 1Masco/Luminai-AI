@@ -17,6 +17,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate }) => {
         onClick={() => onNavigate(AppView.DASHBOARD)}
       />
       <BottomNavItem
+        icon="fa-chart-line"
+        label="Analytics"
+        isActive={currentView === AppView.ANALYTICS}
+        onClick={() => onNavigate(AppView.ANALYTICS)}
+      />
+      <BottomNavItem
         icon="fa-calendar-days"
         label="Calendar"
         isActive={currentView === AppView.CALENDAR}

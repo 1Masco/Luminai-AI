@@ -31,6 +31,8 @@ export const CreateMeetingInputSchema = z.object({
   actionItems: z.array(z.string()).optional(),
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional(),
   notes: z.string().optional(),
+  meetingAnalytics: z.any().optional(),
+  followUpData: z.any().optional(),
 });
 
 export const UpdateMeetingInputSchema = z.object({
@@ -48,6 +50,8 @@ export const UpdateMeetingInputSchema = z.object({
   summary: z.string().optional(),
   actionItems: z.array(z.string()).optional(),
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional(),
+  meetingAnalytics: z.any().optional(),
+  followUpData: z.any().optional(),
 });
 
 export const CreateNoteInputSchema = z.object({
@@ -77,6 +81,30 @@ export const TranscribeAudioInputSchema = z.object({
 
 export const GenerateSummaryInputSchema = z.object({
   transcript: z.string().min(1, 'Transcript is required'),
+});
+
+export const AnalyzeMeetingInputSchema = z.object({
+  transcript: z.array(
+    z.object({
+      id: z.string().optional(),
+      speaker: z.string(),
+      text: z.string(),
+      timestamp: z.number().nonnegative(),
+    })
+  ).min(1, 'Transcript is required'),
+  duration: z.number().int().nonnegative().optional().default(0),
+});
+
+export const GenerateFollowUpInputSchema = z.object({
+  transcript: z.array(
+    z.object({
+      id: z.string().optional(),
+      speaker: z.string(),
+      text: z.string(),
+      timestamp: z.number().nonnegative(),
+    })
+  ).min(1, 'Transcript is required'),
+  title: z.string().optional().default('Meeting'),
 });
 
 export const ChatInputSchema = z.object({

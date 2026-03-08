@@ -7,6 +7,8 @@ import {
   ChatInputSchema,
   ProcessPDFInputSchema,
   RefineNoteInputSchema,
+  AnalyzeMeetingInputSchema,
+  GenerateFollowUpInputSchema,
 } from '../validation/schemas.js';
 import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
@@ -1169,5 +1171,411 @@ router.post(
   })
 );
 
-export default router;
+/**
+ * POST /api/ai/analyze-meeting
+ * AI Meeting Coach — analyze transcript for talk-time, filler words,
+ * speaking pace, per-speaker sentiment, health score, and coaching tips.
+ * Body: { transcript: TranscriptPart[], duration?: number }
+ */
+router.post(
+  '/analyze-meeting',
+  validateRequest(AnalyzeMeetingInputSchema),
+  asyncHandler(async (req, res) => {
+    const { transcript, duration } = req.body;
 
+    logger.info('Meeting coach analysis request', { requestId: req.id, parts: transcript.length });
+
+    try {
+      // ── 1. Talk-time per speaker (local computation) ──────────────────────
+      const speakerWordCounts = {};
+      const speakerTexts = {};
+      const FILLER_PATTERNS = /\b(um|uh|erm|ah|like|you know|i mean|basically|actually|literally|sort of|kind of|right|okay so)\b/gi;
+
+      transcript.forEach(part => {
+        const speaker = part.speaker || 'Unknown';
+        const text = (part.text || '').trim();
+        const words = text.split(/\s+/).filter(Boolean);
+
+        if (!speakerWordCounts[speaker]) {
+          speakerWordCounts[speaker] = 0;
+          speakerTexts[speaker] = [];
+        }
+        speakerWordCounts[speaker] += words.length;
+        speakerTexts[speaker].push(text);
+      });
+
+      const totalWords = Object.values(speakerWordCounts).reduce((a, b) => a + b, 0);
+      const totalDurationSec = duration || Math.max(60, totalWords / 2.5); // ~150 wpm avg
+
+      const talkTime = {};
+      for (const [speaker, wordCount] of Object.entries(speakerWordCounts)) {
+        const pct = totalWords > 0 ? Math.round((wordCount / totalWords) * 100) : 0;
+        const seconds = Math.round((pct / 100) * totalDurationSec);
+        talkTime[speaker] = { seconds, percentage: pct, wordCount };
+      }
+
+      // ── 2. Filler words per speaker (local computation) ──────────────────
+      const fillerWords = {};
+      for (const [speaker, texts] of Object.entries(speakerTexts)) {
+        const combined = texts.join(' ');
+        const matches = combined.match(FILLER_PATTERNS) || [];
+        const fillerCounts = {};
+        matches.forEach(m => {
+          const key = m.toLowerCase().trim();
+          fillerCounts[key] = (fillerCounts[key] || 0) + 1;
+        });
+        fillerWords[speaker] = { ...fillerCounts, total: matches.length };
+      }
+
+      // ── 3. Speaking pace per speaker (local computation) ─────────────────
+      const speakingPace = {};
+      for (const [speaker, wordCount] of Object.entries(speakerWordCounts)) {
+        const speakerSec = (talkTime[speaker]?.seconds || 60);
+        const wpm = Math.round((wordCount / speakerSec) * 60);
+        let rating = 'moderate';
+        if (wpm < 110) rating = 'slow';
+        else if (wpm > 170) rating = 'fast';
+        speakingPace[speaker] = { wordsPerMinute: wpm, rating };
+      }
+
+      // ── 4. Per-speaker sentiment + coaching tips (AI-powered) ────────────
+      let speakerSentiment = {};
+      let coachTips = [];
+
+      // Build summary context for AI
+      const speakerSummaryLines = Object.entries(talkTime)
+        .map(([s, d]) => `${s}: ${d.percentage}% talk-time, ${d.wordCount} words, ${fillerWords[s]?.total || 0} fillers, ${speakingPace[s]?.wordsPerMinute || 0} WPM`)
+        .join('\n');
+
+      const combinedTranscript = transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
+      const contextPrompt = [
+        'Analyze this meeting transcript. For each speaker, determine their sentiment (positive, neutral, or negative).',
+        'Also provide 3-5 actionable coaching tips to improve future meetings.',
+        'Consider: talk-time balance, filler word usage, speaking pace, engagement, and overall meeting productivity.',
+        '',
+        'Speaker stats:',
+        speakerSummaryLines,
+        '',
+        'Transcript (first 6000 chars):',
+        combinedTranscript.slice(0, 6000),
+        '',
+        'Return strict JSON: { "speakerSentiment": { "Speaker Name": "positive|neutral|negative", ... }, "coachTips": ["tip 1", "tip 2", ...] }',
+      ].join('\n');
+
+      try {
+        const { result: aiResult } = await runWithProviderSelection({
+          requestId: req.id,
+          operationName: 'meeting-coach',
+          openaiFn: async () => {
+            const completion = await requestOpenAI({
+              path: '/chat/completions',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: DEFAULT_CHAT_MODEL,
+                temperature: 0.2,
+                response_format: { type: 'json_object' },
+                messages: [
+                  { role: 'system', content: 'You are a professional meeting coach. Return strict JSON only.' },
+                  { role: 'user', content: contextPrompt },
+                ],
+              }),
+            });
+            return parseJsonString(getTextFromCompletion(completion), {});
+          },
+          geminiFn: async () => {
+            const geminiText = await requestGeminiGenerateContent({
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+              systemInstruction: 'You are a professional meeting coach. Return strict JSON only.',
+              parts: [{ text: contextPrompt }],
+            });
+            return parseJsonString(geminiText, {});
+          },
+        });
+
+        if (aiResult.speakerSentiment && typeof aiResult.speakerSentiment === 'object') {
+          speakerSentiment = aiResult.speakerSentiment;
+        }
+        if (Array.isArray(aiResult.coachTips)) {
+          coachTips = aiResult.coachTips.filter(t => typeof t === 'string').slice(0, 6);
+        }
+      } catch (aiError) {
+        logger.warn('AI coach analysis failed, using local fallback', {
+          requestId: req.id,
+          code: aiError?.code,
+          error: aiError?.message,
+        });
+
+        // Fallback: infer sentiment locally
+        for (const [speaker, texts] of Object.entries(speakerTexts)) {
+          speakerSentiment[speaker] = inferSentiment(texts.join(' '));
+        }
+
+        // Fallback: generate basic tips
+        const speakers = Object.keys(talkTime);
+        const maxTalker = speakers.reduce((a, b) => (talkTime[a].percentage > talkTime[b].percentage ? a : b), speakers[0]);
+        if (talkTime[maxTalker]?.percentage > 60) {
+          coachTips.push(`${maxTalker} dominated ${talkTime[maxTalker].percentage}% of talk-time. Encourage others to contribute more.`);
+        }
+        const highFillerSpeaker = speakers.find(s => (fillerWords[s]?.total || 0) > 10);
+        if (highFillerSpeaker) {
+          coachTips.push(`${highFillerSpeaker} used ${fillerWords[highFillerSpeaker].total} filler words. Try pausing instead of using fillers.`);
+        }
+        if (coachTips.length === 0) {
+          coachTips.push('Good meeting! Consider setting a timer to keep discussions focused.');
+        }
+      }
+
+      // ── 5. Health Score (composite from all factors) ─────────────────────
+      const speakers = Object.keys(talkTime);
+      const percentages = speakers.map(s => talkTime[s].percentage);
+      const idealPct = 100 / Math.max(speakers.length, 1);
+      const balanceDeviation = percentages.reduce((sum, p) => sum + Math.abs(p - idealPct), 0) / Math.max(speakers.length, 1);
+      const balanceScore = Math.max(0, 100 - balanceDeviation * 2);
+
+      const totalFillers = Object.values(fillerWords).reduce((s, f) => s + (f.total || 0), 0);
+      const fillerWordScore = Math.max(0, 100 - totalFillers * 2);
+
+      const avgWpm = speakers.length > 0
+        ? speakers.reduce((s, sp) => s + (speakingPace[sp]?.wordsPerMinute || 140), 0) / speakers.length
+        : 140;
+      const paceScore = avgWpm >= 120 && avgWpm <= 160 ? 100 : Math.max(0, 100 - Math.abs(avgWpm - 140) * 1.5);
+
+      const sentimentValues = Object.values(speakerSentiment);
+      const positivePct = sentimentValues.filter(s => s === 'positive').length / Math.max(sentimentValues.length, 1);
+      const negativePct = sentimentValues.filter(s => s === 'negative').length / Math.max(sentimentValues.length, 1);
+      const sentimentScore = Math.round((positivePct * 100) + ((1 - negativePct) * 100)) / 2;
+
+      const engagementLevel = speakers.length >= 3 ? 'high' : speakers.length === 2 ? 'moderate' : 'low';
+
+      const healthScore = Math.round(
+        (balanceScore * 0.25) +
+        (fillerWordScore * 0.20) +
+        (paceScore * 0.25) +
+        (sentimentScore * 0.30)
+      );
+
+      const analytics = {
+        talkTime,
+        fillerWords,
+        speakingPace,
+        speakerSentiment,
+        healthScore: Math.min(100, Math.max(0, healthScore)),
+        healthFactors: {
+          balanced: balanceDeviation < 15,
+          engagementLevel,
+          balanceScore: Math.round(balanceScore),
+          fillerWordScore: Math.round(fillerWordScore),
+          paceScore: Math.round(paceScore),
+          sentimentScore: Math.round(sentimentScore),
+        },
+        coachTips,
+        analyzedAt: new Date().toISOString(),
+      };
+
+      logger.info('Meeting coach analysis complete', {
+        requestId: req.id,
+        healthScore: analytics.healthScore,
+        speakers: speakers.length,
+      });
+
+      res.json(analytics);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Meeting coach analysis error', { error: error.message, requestId: req.id });
+      throw new AppError('Meeting coach analysis failed', 502, 'AI_COACH_ERROR');
+    }
+  })
+);
+
+/**
+ * POST /api/ai/generate-follow-up
+ * Smart Follow-Up Engine — extract assigned actions, detect deadlines,
+ * identify key decisions, and generate a follow-up email.
+ * Body: { transcript: TranscriptPart[], title?: string }
+ */
+router.post(
+  '/generate-follow-up',
+  validateRequest(GenerateFollowUpInputSchema),
+  asyncHandler(async (req, res) => {
+    const { transcript, title } = req.body;
+
+    logger.info('Follow-up generation request', { requestId: req.id, parts: transcript.length });
+
+    try {
+      const combinedTranscript = transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
+      const speakers = [...new Set(transcript.map(p => p.speaker))];
+
+      // ── 1. Local deadline detection (regex, always runs) ─────────────
+      const DEADLINE_PATTERNS = [
+        /\b(by|before|until|due|deadline)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week|end of (?:day|week|month)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?(?:\s*,?\s*\d{4})?)\b/gi,
+        /\b((?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?(?:\s*,?\s*\d{4})?)\b/gi,
+        /\b(next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|month))\b/gi,
+        /\b(end of (?:day|week|month|quarter|year))\b/gi,
+      ];
+
+      const deadlinesDetected = [];
+      transcript.forEach(part => {
+        const text = part.text || '';
+        DEADLINE_PATTERNS.forEach(pattern => {
+          const regex = new RegExp(pattern.source, pattern.flags);
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            const fullMatch = match[0].trim();
+            // Get surrounding context (40 chars each side)
+            const idx = text.indexOf(fullMatch);
+            const start = Math.max(0, idx - 40);
+            const end = Math.min(text.length, idx + fullMatch.length + 40);
+            const context = text.slice(start, end).trim();
+
+            // Deduplicate by text
+            if (!deadlinesDetected.some(d => d.text === fullMatch && d.speaker === part.speaker)) {
+              deadlinesDetected.push({
+                text: fullMatch,
+                context: context,
+                speaker: part.speaker,
+              });
+            }
+          }
+        });
+      });
+
+      // ── 2. AI-powered extraction (actions, decisions, email) ───────
+      let assignedActions = [];
+      let keyDecisions = [];
+      let followUpEmail = { subject: '', body: '' };
+
+      const prompt = [
+        `Analyze this meeting transcript titled "${title || 'Meeting'}" and extract:`,
+        '',
+        '1. **assignedActions**: An array of action items. For each, identify:',
+        '   - task: what needs to be done (clear, concise)',
+        '   - assignee: the speaker responsible (use exact speaker names from transcript)',
+        '   - deadline: any mentioned deadline (e.g. "Friday", "next week", "March 15") or "none"',
+        '   - priority: "high", "medium", or "low" based on urgency cues',
+        '',
+        '2. **keyDecisions**: Array of key decisions made during the meeting (strings)',
+        '',
+        '3. **followUpEmail**: A professional follow-up email with:',
+        '   - subject: concise email subject line',
+        '   - body: professional email body summarizing the meeting, listing action items with owners and deadlines',
+        '',
+        `Speakers in this meeting: ${speakers.join(', ')}`,
+        '',
+        'Return strict JSON with keys: assignedActions, keyDecisions, followUpEmail',
+        '',
+        'Transcript:',
+        combinedTranscript.slice(0, 8000),
+      ].join('\n');
+
+      try {
+        const { result: aiResult } = await runWithProviderSelection({
+          requestId: req.id,
+          operationName: 'follow-up',
+          openaiFn: async () => {
+            const completion = await requestOpenAI({
+              path: '/chat/completions',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: DEFAULT_CHAT_MODEL,
+                temperature: 0.2,
+                response_format: { type: 'json_object' },
+                messages: [
+                  { role: 'system', content: 'You are a professional executive assistant. Extract action items, decisions, and draft follow-up emails. Return strict JSON only.' },
+                  { role: 'user', content: prompt },
+                ],
+              }),
+            });
+            return parseJsonString(getTextFromCompletion(completion), {});
+          },
+          geminiFn: async () => {
+            const geminiText = await requestGeminiGenerateContent({
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+              systemInstruction: 'You are a professional executive assistant. Extract action items, decisions, and draft follow-up emails. Return strict JSON only.',
+              parts: [{ text: prompt }],
+            });
+            return parseJsonString(geminiText, {});
+          },
+        });
+
+        // Parse assigned actions
+        if (Array.isArray(aiResult.assignedActions)) {
+          assignedActions = aiResult.assignedActions
+            .filter(a => a && typeof a.task === 'string')
+            .map(a => ({
+              task: a.task.trim(),
+              assignee: (typeof a.assignee === 'string' ? a.assignee.trim() : 'Unassigned'),
+              deadline: (typeof a.deadline === 'string' ? a.deadline.trim() : 'none'),
+              priority: ['high', 'medium', 'low'].includes(a.priority) ? a.priority : 'medium',
+            }))
+            .slice(0, 15);
+        }
+
+        // Parse key decisions
+        if (Array.isArray(aiResult.keyDecisions)) {
+          keyDecisions = aiResult.keyDecisions
+            .filter(d => typeof d === 'string' && d.trim())
+            .map(d => d.trim())
+            .slice(0, 10);
+        }
+
+        // Parse follow-up email
+        if (aiResult.followUpEmail && typeof aiResult.followUpEmail === 'object') {
+          followUpEmail = {
+            subject: typeof aiResult.followUpEmail.subject === 'string' ? aiResult.followUpEmail.subject.trim() : `Follow-up: ${title}`,
+            body: typeof aiResult.followUpEmail.body === 'string' ? aiResult.followUpEmail.body.trim() : '',
+          };
+        }
+      } catch (aiError) {
+        logger.warn('AI follow-up generation failed, using local fallback', {
+          requestId: req.id,
+          code: aiError?.code,
+          error: aiError?.message,
+        });
+
+        // Fallback: extract action-like lines from transcript
+        transcript.forEach(part => {
+          const text = (part.text || '').trim();
+          if (/\b(will|should|need to|must|going to|action|todo|follow[- ]?up|assign|task|responsible)\b/i.test(text)) {
+            assignedActions.push({
+              task: text.slice(0, 200),
+              assignee: part.speaker,
+              deadline: 'none',
+              priority: 'medium',
+            });
+          }
+        });
+        assignedActions = assignedActions.slice(0, 10);
+
+        followUpEmail = {
+          subject: `Follow-up: ${title || 'Meeting'}`,
+          body: `Hi team,\n\nThank you for attending today's meeting.\n\nHere are the key action items:\n${assignedActions.map((a, i) => `${i + 1}. ${a.task} (${a.assignee})`).join('\n')}\n\nBest regards`,
+        };
+      }
+
+      const followUpData = {
+        assignedActions,
+        keyDecisions,
+        followUpEmail,
+        deadlinesDetected: deadlinesDetected.slice(0, 10),
+        generatedAt: new Date().toISOString(),
+      };
+
+      logger.info('Follow-up generated', {
+        requestId: req.id,
+        actions: assignedActions.length,
+        decisions: keyDecisions.length,
+        deadlines: deadlinesDetected.length,
+      });
+
+      res.json(followUpData);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error('Follow-up generation error', { error: error.message, requestId: req.id });
+      throw new AppError('Follow-up generation failed', 502, 'AI_FOLLOWUP_ERROR');
+    }
+  })
+);
+
+export default router;

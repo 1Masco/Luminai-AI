@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Meeting } from '../types';
+import { Meeting, MeetingAnalytics, FollowUpData } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
 import { exportSummaryAsPDF, exportTranscriptAsPDF, exportFullReportAsPDF } from '../utils/pdfExport';
 import config from '../utils/config';
+import MeetingCoach from './MeetingCoach';
+import FollowUpPanel from './FollowUpPanel';
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -13,7 +15,7 @@ interface MeetingDetailProps {
 }
 
 const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdateMeeting }) => {
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'chat'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'chat' | 'coach'>('transcript');
   const [summary, setSummary] = useState<string>(meeting.summary || "");
   const [actionItems, setActionItems] = useState<string[]>(meeting.actionItems || []);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -400,6 +402,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
         <div className="flex border-b border-gray-100 px-4 md:hidden shrink-0">
           <TabButton active={activeTab === 'transcript'} onClick={() => setActiveTab('transcript')} label="Transcript" />
           <TabButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} label="Summary" />
+          <TabButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} label="Coach" />
           <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} label="AI Chat" />
         </div>
 
@@ -408,6 +411,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           <div className="hidden md:flex border-b border-gray-100 px-6 shrink-0">
             <TabButton active={activeTab === 'transcript'} onClick={() => setActiveTab('transcript')} label="Transcript" />
             <TabButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} label="AI Summary & Notes" />
+            <TabButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} label="🧠 Coach" />
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/20">
@@ -522,6 +526,38 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                     </div>
                   </div>
                 )}
+
+                {/* Smart Follow-Up Engine */}
+                <FollowUpPanel
+                  transcript={meeting.transcript}
+                  meetingTitle={meeting.title}
+                  followUp={meeting.follow_up_data || meeting.followUp || null}
+                  onFollowUpGenerated={(data: FollowUpData) => {
+                    onUpdateMeeting({
+                      ...meeting,
+                      followUp: data,
+                      follow_up_data: data,
+                    } as Meeting);
+                  }}
+                />
+
+              </div>
+            )}
+
+            {activeTab === 'coach' && (
+              <div className="max-w-3xl mx-auto pb-10">
+                <MeetingCoach
+                  transcript={meeting.transcript}
+                  duration={meeting.duration}
+                  analytics={meeting.meeting_analytics || meeting.analytics || null}
+                  onAnalyticsGenerated={(analytics: MeetingAnalytics) => {
+                    onUpdateMeeting({
+                      ...meeting,
+                      analytics,
+                      meeting_analytics: analytics,
+                    } as Meeting);
+                  }}
+                />
               </div>
             )}
           </div>
@@ -560,8 +596,8 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             {chatHistory.map((chat, i) => (
               <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
                 <div className={`max-w-[88%] px-4 py-2.5 rounded-2xl text-xs md:text-sm leading-relaxed ${chat.role === 'user'
-                    ? 'bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-br-sm shadow-md shadow-brand-500/20'
-                    : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'
+                  ? 'bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-br-sm shadow-md shadow-brand-500/20'
+                  : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'
                   }`}>
                   {chat.text}
                 </div>

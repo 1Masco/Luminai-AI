@@ -56,6 +56,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             onClick={() => onNavigate(AppView.DASHBOARD)}
           />
           <NavItem
+            icon="fa-chart-line"
+            label="Analytics"
+            isActive={currentView === AppView.ANALYTICS}
+            onClick={() => onNavigate(AppView.ANALYTICS)}
+          />
+          <NavItem
             icon="fa-calendar-days"
             label="Calendar"
             isActive={currentView === AppView.CALENDAR}
