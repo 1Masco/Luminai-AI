@@ -12,9 +12,10 @@ interface MeetingDetailProps {
   meeting: Meeting;
   onBack: () => void;
   onUpdateMeeting: (meeting: Meeting) => void;
+  onTranslate?: (meeting: Meeting) => void;
 }
 
-const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdateMeeting }) => {
+const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdateMeeting, onTranslate }) => {
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'chat' | 'coach'>('transcript');
   const [summary, setSummary] = useState<string>(meeting.summary || "");
   const [actionItems, setActionItems] = useState<string[]>(meeting.actionItems || []);
@@ -385,6 +386,15 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             >
               <i className="fas fa-check text-xs"></i>
               <span className="hidden md:inline">Save</span>
+            </button>
+          )}
+          {onTranslate && (
+            <button
+              onClick={() => onTranslate(meeting)}
+              className="h-9 px-3 md:px-4 text-xs md:text-sm font-semibold border border-gray-200/80 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-2 transition-all"
+            >
+              <i className="fas fa-language text-indigo-400"></i>
+              <span className="hidden md:inline">Translate</span>
             </button>
           )}
           <button

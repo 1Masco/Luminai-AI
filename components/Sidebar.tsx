@@ -62,10 +62,34 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             onClick={() => onNavigate(AppView.ANALYTICS)}
           />
           <NavItem
+            icon="fa-robot"
+            label="AI Chat"
+            isActive={currentView === AppView.AI_CHAT}
+            onClick={() => onNavigate(AppView.AI_CHAT)}
+          />
+          <NavItem
             icon="fa-calendar-days"
             label="Calendar"
             isActive={currentView === AppView.CALENDAR}
             onClick={() => onNavigate(AppView.CALENDAR)}
+          />
+          <NavItem
+            icon="fa-microphone-lines"
+            label="Voice Memos"
+            isActive={currentView === AppView.VOICE_MEMOS}
+            onClick={() => onNavigate(AppView.VOICE_MEMOS)}
+          />
+          <NavItem
+            icon="fa-clipboard-list"
+            label="Meeting Prep"
+            isActive={currentView === AppView.MEETING_PREP}
+            onClick={() => onNavigate(AppView.MEETING_PREP)}
+          />
+          <NavItem
+            icon="fa-wand-magic-sparkles"
+            label="AI Templates"
+            isActive={currentView === AppView.AI_TEMPLATES}
+            onClick={() => onNavigate(AppView.AI_TEMPLATES)}
           />
           <NavItem
             icon="fa-folder-open"

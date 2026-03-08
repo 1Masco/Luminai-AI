@@ -77,6 +77,8 @@ export interface Meeting {
   meeting_analytics?: MeetingAnalytics;
   followUp?: FollowUpData;
   follow_up_data?: FollowUpData;
+  detectedLanguages?: string[];
+  detected_languages?: string[];
 }
 
 
@@ -113,6 +115,133 @@ export interface CalendarEvent {
   link: string;
 }
 
+// =============================================
+// Multi-Language Translation Types
+// =============================================
+export interface TranslatedTranscriptPart {
+  id: string;
+  speaker: string;
+  text: string;
+  originalText: string;
+  timestamp: number;
+}
+
+export interface MeetingTranslation {
+  id: string;
+  meetingId: string;
+  languageCode: string;
+  languageName: string;
+  translatedTranscript: TranslatedTranscriptPart[];
+  translatedSummary?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  createdAt: string;
+}
+
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'it', name: 'Italian', flag: '🇮🇹' },
+  { code: 'pt', name: 'Portuguese', flag: '🇧🇷' },
+  { code: 'ja', name: 'Japanese', flag: '🇯🇵' },
+  { code: 'ko', name: 'Korean', flag: '🇰🇷' },
+  { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
+  { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
+] as const;
+
+// =============================================
+// AI Chat Types
+// =============================================
+export interface AIChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  meetingReferences?: string[]; // meeting IDs referenced
+  createdAt: string;
+}
+
+export interface AIChatConversation {
+  id: string;
+  title: string;
+  meetingIds: string[];
+  messages: AIChatMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// =============================================
+// Voice Memo Types
+// =============================================
+export interface VoiceMemo {
+  id: string;
+  title: string;
+  transcription?: string;
+  duration: number;
+  category: 'standup' | 'idea' | 'todo' | 'general';
+  linkedMeetingId?: string;
+  tags: string[];
+  isQuickCapture: boolean;
+  audioUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// =============================================
+// Smart Meeting Prep Types
+// =============================================
+export interface ContextCard {
+  topic: string;
+  summary: string;
+  date: string;
+  meetingId?: string;
+}
+
+export interface MeetingPrepBrief {
+  id: string;
+  meetingTitle: string;
+  relatedMeetingIds: string[];
+  briefContent: {
+    lastDiscussed: string[];
+    unresolvedActions: string[];
+    suggestedAgenda: string[];
+    contextCards: ContextCard[];
+  };
+  generatedForDate?: string;
+  createdAt: string;
+}
+
+// =============================================
+// Custom AI Template Types
+// =============================================
+export interface AITemplate {
+  id: string;
+  userId?: string;
+  name: string;
+  description?: string;
+  category: 'sales' | 'standup' | '1on1' | 'interview' | 'legal' | 'medical' | 'education' | 'custom';
+  promptTemplate: string;
+  outputFormat: 'markdown' | 'bullet_points' | 'structured';
+  isShared: boolean;
+  isSystem: boolean;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const DEFAULT_TEMPLATE_CATEGORIES = [
+  { value: 'sales', label: 'Sales Call', icon: 'fa-handshake', color: 'emerald' },
+  { value: 'standup', label: 'Standup', icon: 'fa-users', color: 'blue' },
+  { value: '1on1', label: '1:1 Meeting', icon: 'fa-user-group', color: 'purple' },
+  { value: 'interview', label: 'Interview', icon: 'fa-clipboard-question', color: 'amber' },
+  { value: 'legal', label: 'Legal', icon: 'fa-scale-balanced', color: 'red' },
+  { value: 'medical', label: 'Medical', icon: 'fa-stethoscope', color: 'teal' },
+  { value: 'education', label: 'Education', icon: 'fa-graduation-cap', color: 'indigo' },
+  { value: 'custom', label: 'Custom', icon: 'fa-wand-magic-sparkles', color: 'gray' },
+] as const;
+
 export enum AppView {
   DASHBOARD = 'dashboard',
   RECORDING = 'recording',
@@ -123,5 +252,10 @@ export enum AppView {
   SHARED = 'shared',
   PROFILE = 'profile',
   AUTH = 'auth',
-  ANALYTICS = 'analytics'
+  ANALYTICS = 'analytics',
+  AI_CHAT = 'ai_chat',
+  VOICE_MEMOS = 'voice_memos',
+  MEETING_PREP = 'meeting_prep',
+  AI_TEMPLATES = 'ai_templates',
+  TRANSLATION = 'translation'
 }

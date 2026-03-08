@@ -320,6 +320,331 @@ class APIService {
 
         return response.json();
     }
+
+    // =============================================
+    // MULTI-LANGUAGE TRANSLATION
+    // =============================================
+
+    /**
+     * Translate a meeting transcript to a target language
+     */
+    async translateMeeting(meetingId: string, languageCode: string, languageName: string, transcript: string, summary: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetingId, languageCode, languageName, transcript, summary })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Translation failed'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Get existing translations for a meeting
+     */
+    async getTranslations(meetingId: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/translations/${meetingId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch translations'));
+        }
+
+        return response.json();
+    }
+
+    // =============================================
+    // AI CHAT WITH MEETINGS
+    // =============================================
+
+    /**
+     * Cross-meeting AI chat — semantic search across all meetings
+     */
+    async crossMeetingChat(
+        question: string,
+        meetings: Array<{ id: string; title: string; date: string; summary: string; transcript: string; actionItems: string[] }>,
+        conversationId?: string,
+        history?: Array<{ role: string; content: string }>
+    ) {
+        const response = await fetch(`${this.baseURL}/api/ai/cross-meeting-chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, meetings, conversationId, history })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'AI chat failed'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Get chat conversations list
+     */
+    async getChatConversations() {
+        const response = await fetch(`${this.baseURL}/api/ai/chat-conversations`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch conversations'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Get messages for a conversation
+     */
+    async getChatMessages(conversationId: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/chat-conversations/${conversationId}/messages`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch messages'));
+        }
+
+        return response.json();
+    }
+
+    // =============================================
+    // VOICE MEMOS
+    // =============================================
+
+    /**
+     * Get all voice memos
+     */
+    async getVoiceMemos() {
+        const response = await fetch(`${this.baseURL}/api/ai/voice-memos`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch voice memos'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Save a new voice memo
+     */
+    async saveVoiceMemo(memo: any) {
+        const response = await fetch(`${this.baseURL}/api/ai/voice-memos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(memo)
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to save voice memo'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Update a voice memo
+     */
+    async updateVoiceMemo(id: string, memo: any) {
+        const response = await fetch(`${this.baseURL}/api/ai/voice-memos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(memo)
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to update voice memo'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Delete a voice memo
+     */
+    async deleteVoiceMemo(id: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/voice-memos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to delete voice memo'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * AI categorize a voice memo transcription
+     */
+    async categorizeMemo(transcription: string, meetings: Array<{ id: string; title: string }>) {
+        const response = await fetch(`${this.baseURL}/api/ai/categorize-memo`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcription, meetings })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to categorize memo'));
+        }
+
+        return response.json();
+    }
+
+    // =============================================
+    // SMART MEETING PREP
+    // =============================================
+
+    /**
+     * Generate a meeting prep brief
+     */
+    async generateMeetingPrep(
+        meetingTitle: string,
+        relatedMeetings: Array<{ id: string; title: string; date: string; summary: string; actionItems: string[]; transcript: string }>
+    ) {
+        const response = await fetch(`${this.baseURL}/api/ai/meeting-prep`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetingTitle, relatedMeetings })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to generate meeting prep'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Get saved meeting prep briefs
+     */
+    async getMeetingPrepBriefs() {
+        const response = await fetch(`${this.baseURL}/api/ai/meeting-prep`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch prep briefs'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Delete a meeting prep brief
+     */
+    async deleteMeetingPrepBrief(id: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/meeting-prep/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to delete prep brief'));
+        }
+
+        return response.json();
+    }
+
+    // =============================================
+    // CUSTOM AI TEMPLATES
+    // =============================================
+
+    /**
+     * Get all AI templates (user's own + shared + system)
+     */
+    async getAITemplates() {
+        const response = await fetch(`${this.baseURL}/api/ai/templates`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch templates'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Create a new AI template
+     */
+    async createAITemplate(template: any) {
+        const response = await fetch(`${this.baseURL}/api/ai/templates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(template)
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to create template'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Update an AI template
+     */
+    async updateAITemplate(id: string, template: any) {
+        const response = await fetch(`${this.baseURL}/api/ai/templates/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(template)
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to update template'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Delete an AI template
+     */
+    async deleteAITemplate(id: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/templates/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to delete template'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Generate summary with a custom template
+     */
+    async generateWithTemplate(transcript: string, templatePrompt: string, outputFormat: string) {
+        const response = await fetch(`${this.baseURL}/api/ai/generate-with-template`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript, templatePrompt, outputFormat })
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Template generation failed'));
+        }
+
+        return response.json();
+    }
 }
 
 export const apiService = new APIService();

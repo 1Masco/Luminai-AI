@@ -15,6 +15,7 @@ import meetingsRoutes from './routes/meetings.js';
 import calendarRoutes from './routes/calendar.js';
 import cloudRoutes from './routes/cloud.js';
 import sharingRoutes from './routes/sharing.js';
+import featuresRoutes from './routes/features.js';
 
 // Load environment variables
 dotenv.config();
@@ -154,6 +155,8 @@ if (!isProduction) {
 app.use('/api/ai', aiRoutes);
 // Backward-compatible alias for older clients.
 app.use('/api/gemini', aiRoutes);
+// New feature routes (translation, chat, memos, prep, templates)
+app.use('/api/ai', featuresRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/meetings', meetingsRoutes);

@@ -13,6 +13,11 @@ import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import BottomNav from './components/BottomNav';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import AIChatView from './components/AIChatView';
+import VoiceMemosView from './components/VoiceMemosView';
+import MeetingPrepView from './components/MeetingPrepView';
+import AITemplatesView from './components/AITemplatesView';
+import TranslationView from './components/TranslationView';
 import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
 const App: React.FC = () => {
@@ -25,6 +30,7 @@ const App: React.FC = () => {
   const [pendingFile, setPendingFile] = useState<File | { name: string, url: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingMeetingTitle, setPendingMeetingTitle] = useState<string | undefined>(undefined);
+  const [translationMeeting, setTranslationMeeting] = useState<Meeting | null>(null);
 
   useEffect(() => {
     const savedMeetings = localStorage.getItem('lumina_meetings');
@@ -214,6 +220,11 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   }
 
+  const handleTranslateMeeting = (meeting: Meeting) => {
+    setTranslationMeeting(meeting);
+    navigateTo(AppView.TRANSLATION);
+  };
+
   if (!isAuthenticated) {
     return <AuthView onLogin={handleLogin} />;
   }
@@ -317,6 +328,32 @@ const App: React.FC = () => {
             <AnalyticsDashboard meetings={meetings} />
           )}
 
+          {currentView === AppView.AI_CHAT && (
+            <AIChatView meetings={meetings} onViewMeeting={handleViewMeeting} />
+          )}
+
+          {currentView === AppView.VOICE_MEMOS && (
+            <VoiceMemosView meetings={meetings} onViewMeeting={handleViewMeeting} />
+          )}
+
+          {currentView === AppView.MEETING_PREP && (
+            <MeetingPrepView meetings={meetings} onViewMeeting={handleViewMeeting} />
+          )}
+
+          {currentView === AppView.AI_TEMPLATES && (
+            <AITemplatesView />
+          )}
+
+          {currentView === AppView.TRANSLATION && translationMeeting && (
+            <TranslationView meeting={translationMeeting} onBack={() => {
+              if (selectedMeeting && selectedMeeting.id === translationMeeting.id) {
+                navigateTo(AppView.MEETING_DETAIL);
+              } else {
+                navigateTo(AppView.DASHBOARD);
+              }
+            }} />
+          )}
+
           {currentView === AppView.PROFILE && (
             <ProfileView user={user!} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
           )}
@@ -326,6 +363,7 @@ const App: React.FC = () => {
               meeting={selectedMeeting}
               onBack={() => navigateTo(AppView.DASHBOARD)}
               onUpdateMeeting={handleUpdateMeeting}
+              onTranslate={handleTranslateMeeting}
             />
           )}
         </div>

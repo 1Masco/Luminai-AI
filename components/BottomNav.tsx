@@ -17,16 +17,16 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate }) => {
         onClick={() => onNavigate(AppView.DASHBOARD)}
       />
       <BottomNavItem
-        icon="fa-chart-line"
-        label="Analytics"
-        isActive={currentView === AppView.ANALYTICS}
-        onClick={() => onNavigate(AppView.ANALYTICS)}
+        icon="fa-robot"
+        label="AI Chat"
+        isActive={currentView === AppView.AI_CHAT}
+        onClick={() => onNavigate(AppView.AI_CHAT)}
       />
       <BottomNavItem
-        icon="fa-calendar-days"
-        label="Calendar"
-        isActive={currentView === AppView.CALENDAR}
-        onClick={() => onNavigate(AppView.CALENDAR)}
+        icon="fa-microphone-lines"
+        label="Memos"
+        isActive={currentView === AppView.VOICE_MEMOS}
+        onClick={() => onNavigate(AppView.VOICE_MEMOS)}
       />
       <BottomNavItem
         icon="fa-folder-open"
@@ -35,10 +35,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate }) => {
         onClick={() => onNavigate(AppView.NOTES)}
       />
       <BottomNavItem
-        icon="fa-share-nodes"
-        label="Shared"
-        isActive={currentView === AppView.SHARED}
-        onClick={() => onNavigate(AppView.SHARED)}
+        icon="fa-wand-magic-sparkles"
+        label="Templates"
+        isActive={currentView === AppView.AI_TEMPLATES}
+        onClick={() => onNavigate(AppView.AI_TEMPLATES)}
       />
       <BottomNavItem
         icon="fa-user"
