@@ -263,31 +263,42 @@ const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel,
       .padStart(2, '0')}`;
   };
 
+  const isFinishDisabled = !isRecording || isProcessing;
+
   return (
-    <div className="flex h-full flex-col bg-white">
-      <div className="flex items-center justify-between border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-white p-6">
+    <div className="flex h-full flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border-primary)', backgroundColor: 'var(--card-bg)' }}>
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className={`h-3.5 w-3.5 rounded-full ${isProcessing ? 'bg-amber-500' : 'bg-red-500'}`} />
             {!isProcessing && <div className="absolute inset-0 h-3.5 w-3.5 rounded-full bg-red-500 animate-pulse-ring" />}
           </div>
           <div>
-            <span className="font-bold text-gray-900 text-lg">{isProcessing ? 'Processing Recording' : 'Live Recording'}</span>
-            <span className="font-mono text-gray-400 ml-3 text-sm tabular-nums">{formatTime(duration)}</span>
+            <span className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{isProcessing ? 'Processing Recording' : 'Live Recording'}</span>
+            <span className="font-mono ml-3 text-sm tabular-nums" style={{ color: 'var(--text-secondary)' }}>{formatTime(duration)}</span>
           </div>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleCancel}
             disabled={isProcessing}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-gray-500 transition-all hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             Cancel
           </button>
           <button
             onClick={handleFinish}
-            disabled={!isRecording || isProcessing}
-            className="rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-7 py-2.5 font-bold text-white shadow-lg shadow-brand-500/25 transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-brand-500/40 disabled:cursor-not-allowed disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
+            disabled={isFinishDisabled}
+            className={`rounded-xl px-7 py-2.5 font-bold transition-all ${isFinishDisabled
+              ? ''
+              : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-500/25 hover:from-brand-700 hover:to-brand-600 hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-[0.98]'
+              }`}
+            style={isFinishDisabled
+              ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)', border: '1px solid var(--border-secondary)' }
+              : {}}
           >
             {isProcessing ? 'Processing...' : 'Finish & Transcribe'}
           </button>
@@ -296,12 +307,12 @@ const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel,
 
       <div className="flex flex-1 flex-col items-center justify-center overflow-hidden p-8">
         {error ? (
-          <div className="max-w-md rounded-3xl bg-red-50 p-10 text-center text-red-600 animate-scale-in">
+          <div className="max-w-md rounded-3xl p-10 text-center text-red-600 animate-scale-in" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid rgba(248,113,113,0.4)' }}>
             <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
               <i className="fas fa-triangle-exclamation text-2xl" />
             </div>
             <h2 className="mb-2 text-xl font-bold">Recording Error</h2>
-            <p className="mb-6 text-sm text-red-500">{error}</p>
+            <p className="mb-6 text-sm text-red-400">{error}</p>
             <button onClick={() => window.location.reload()} className="rounded-xl bg-red-600 px-6 py-2.5 font-bold text-white hover:bg-red-700 transition-colors">
               Retry
             </button>
@@ -309,20 +320,20 @@ const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel,
         ) : (
           <div className="flex h-full w-full max-w-4xl flex-col">
             <div className="mb-8 flex-1 overflow-y-auto pr-4">
-              <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-70">
+              <div className="h-full flex flex-col items-center justify-center">
                 <div className="relative">
-                  <i className={`fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-wave-square'} mb-5 text-7xl text-brand-200`} />
-                  {!isProcessing && <div className="absolute inset-0 flex items-center justify-center"><div className="w-20 h-20 border-2 border-brand-200/30 rounded-full animate-pulse-ring"></div></div>}
+                  <i className={`fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-wave-square'} mb-5 text-7xl text-brand-400`} />
+                  {!isProcessing && <div className="absolute inset-0 flex items-center justify-center"><div className="w-20 h-20 border-2 border-brand-400/30 rounded-full animate-pulse-ring"></div></div>}
                 </div>
-                <p className="text-xl text-gray-500 font-medium">{status}</p>
-                {meetingTitle && <p className="text-sm text-brand-400 mt-2 font-semibold">{meetingTitle}</p>}
+                <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>{status}</p>
+                {meetingTitle && <p className="text-sm text-brand-300 mt-2 font-semibold">{meetingTitle}</p>}
               </div>
             </div>
 
-            <div className="relative mb-4 h-28 overflow-hidden rounded-2xl border border-gray-100/80 bg-gradient-to-r from-gray-50/50 to-gray-50">
+            <div className="relative mb-4 h-28 overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--card-bg)' }}>
               <canvas ref={canvasRef} width={800} height={100} className="h-full w-full" />
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-gray-300">Audio Input Stream</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.25em]" style={{ color: 'var(--text-tertiary)' }}>Audio Input Stream</p>
               </div>
             </div>
           </div>

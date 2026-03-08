@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-extrabold tracking-tight text-brand-700 dark:text-brand-200">Lumina</span>
-              <span className="text-[9px] font-bold text-brand-500 uppercase tracking-widest -mt-0.5">AI Meeting</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest -mt-0.5" style={{ color: 'var(--text-secondary)' }}>AI Meeting</span>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-2 rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>
@@ -46,7 +46,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
         {/* Record Button */}
         <button
           onClick={onStartRecording}
-          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:scale-[1.01] active:scale-[0.98] mb-8 group"
+          className="w-full font-semibold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:scale-[1.01] active:scale-[0.98] mb-8 group"
+          style={{ background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)', color: '#ffffff' }}
         >
           <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <i className="fas fa-plus text-xs"></i>
@@ -56,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
 
         {/* Navigation */}
         <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
-          <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-secondary)' }}>
             Workspace
           </p>
           <NavItem
@@ -107,7 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             isActive={currentView === AppView.NOTES}
             onClick={() => onNavigate(AppView.NOTES)}
           />
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-secondary)' }}>
             Collaboration
           </p>
           <NavItem
@@ -200,7 +201,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
     )}
     <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isActive ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/25' : ''
       }`}
-      style={!isActive ? { color: 'var(--text-tertiary)' } : {}}
+      style={!isActive ? { color: 'var(--text-secondary)' } : {}}
     >
       <i className={`fas ${icon} text-xs`}></i>
     </div>
