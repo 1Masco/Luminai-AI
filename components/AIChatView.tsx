@@ -178,6 +178,7 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
     "Are there any unresolved issues from last week?",
     "What's the overall sentiment trend in recent meetings?",
   ];
+  const isSendDisabled = !inputMessage.trim() || isLoading;
 
   return (
     <div className="h-full flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -398,8 +399,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
 
         {/* Input */}
         <div className="p-4 shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderTop: '1px solid var(--border-secondary)' }}>
-          <div className="flex items-end gap-3 max-w-4xl mx-auto">
-            <div className="flex-1 relative">
+          <div className="max-w-4xl mx-auto w-full grid grid-cols-[1fr_auto] items-end gap-3">
+            <div className="min-w-0 relative">
               <textarea
                 ref={inputRef}
                 value={inputMessage}
@@ -424,8 +425,12 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
             </div>
             <button
               onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="w-11 h-11 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+              disabled={isSendDisabled}
+              aria-label="Send message"
+              className="h-11 min-w-11 px-3 rounded-xl flex items-center justify-center transition-all shrink-0"
+              style={isSendDisabled
+                ? { backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', color: 'var(--text-tertiary)' }
+                : { background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)', color: '#ffffff' }}
             >
               <i className="fas fa-paper-plane text-sm"></i>
             </button>
