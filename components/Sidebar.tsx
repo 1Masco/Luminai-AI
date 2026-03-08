@@ -27,11 +27,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
         {/* Logo */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onNavigate(AppView.DASHBOARD)}>
-            <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/25 group-hover:shadow-brand-500/40 transition-shadow">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/25 group-hover:shadow-brand-500/40 transition-shadow"
+              style={{ background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%)' }}
+            >
               <i className="fas fa-microphone-lines text-sm"></i>
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Lumina</span>
+              <span className="text-lg font-extrabold tracking-tight text-brand-700 dark:text-brand-200">Lumina</span>
               <span className="text-[9px] font-bold text-brand-500 uppercase tracking-widest -mt-0.5">AI Meeting</span>
             </div>
           </div>

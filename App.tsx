@@ -314,11 +314,14 @@ const App: React.FC = () => {
                 <i className="fas fa-bars text-sm"></i>
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center text-white text-xs">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs"
+                  style={{ background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%)' }}
+                >
                   <i className="fas fa-microphone-lines"></i>
                 </div>
                 <div className="leading-tight">
-                  <p className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>Lumina</p>
+                  <p className="text-sm font-extrabold text-brand-700 dark:text-brand-200">Lumina</p>
                   <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Workspace</p>
                 </div>
               </div>
