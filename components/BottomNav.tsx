@@ -9,7 +9,10 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate }) => {
   return (
-    <nav className="lg:hidden fixed bottom-4 left-4 right-4 glass rounded-2xl flex justify-around items-center h-16 px-2 z-40 shadow-lg" style={{ borderColor: 'var(--glass-border)', border: '1px solid var(--glass-border)' }}>
+    <nav
+      className="lg:hidden fixed bottom-4 left-4 right-4 glass rounded-2xl grid grid-cols-6 items-center h-16 px-2 z-40 shadow-lg"
+      style={{ borderColor: 'var(--glass-border)', border: '1px solid var(--glass-border)' }}
+    >
       <BottomNavItem
         icon="fa-house"
         label="Home"
@@ -60,7 +63,7 @@ interface BottomNavItemProps {
 const BottomNavItem: React.FC<BottomNavItemProps> = ({ icon, label, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'text-brand-600' : 'active:scale-95'
+    className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl transition-all duration-200 ${isActive ? 'text-brand-600' : 'active:scale-95'
       }`}
     style={!isActive ? { color: 'var(--text-tertiary)' } : {}}
   >

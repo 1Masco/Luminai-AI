@@ -4,16 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Lumina — AI Meeting Intelligence</title>
+    <title>Lumina - AI Meeting Intelligence</title>
     <meta name="description" content="Lumina captures, transcribes, and summarizes your meetings with AI. Never miss an insight again.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+              sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+              display: ['Space Grotesk', 'Plus Jakarta Sans', 'sans-serif'],
             },
             colors: {
               brand: {
@@ -83,9 +85,9 @@
       }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
         
-        /* ── Theme CSS Variables ── */
+        /* Theme CSS Variables */
         :root {
             --safe-area-inset-bottom: env(safe-area-inset-bottom);
             /* Light theme */
@@ -108,6 +110,8 @@
             --scrollbar-hover: rgba(0, 0, 0, 0.2);
             --shadow-color: rgba(0, 0, 0, 0.05);
             --overlay-bg: rgba(0, 0, 0, 0.5);
+            --bg-accent-a: rgba(99, 102, 241, 0.12);
+            --bg-accent-b: rgba(14, 165, 233, 0.1);
         }
 
         html.dark {
@@ -130,6 +134,8 @@
             --scrollbar-hover: rgba(255, 255, 255, 0.2);
             --shadow-color: rgba(0, 0, 0, 0.3);
             --overlay-bg: rgba(0, 0, 0, 0.7);
+            --bg-accent-a: rgba(99, 102, 241, 0.22);
+            --bg-accent-b: rgba(56, 189, 248, 0.12);
         }
 
         * {
@@ -137,13 +143,23 @@
         }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-primary);
             color: var(--text-primary);
             overscroll-behavior-y: none;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             transition: background-color 0.3s ease, color 0.3s ease;
+            background-image:
+              radial-gradient(circle at 15% -10%, var(--bg-accent-a), transparent 45%),
+              radial-gradient(circle at 95% 100%, var(--bg-accent-b), transparent 42%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: -0.01em;
         }
 
         .pb-safe {
@@ -228,6 +244,10 @@
             background-size: 400% 400%;
             animation: gradientShift 8s ease infinite;
         }
+        html.dark .gradient-bg {
+            background: linear-gradient(-45deg, #0b1224, #111827, #1f2937, #0f172a);
+            background-size: 400% 400%;
+        }
 
         /* Focus ring */
         input:focus, textarea:focus, select:focus {
@@ -303,7 +323,7 @@
         html.dark .hover\:text-gray-800:hover { color: var(--text-primary) !important; }
     </style>
     <script>
-      // Persist theme preference — runs before React to prevent flash
+      // Persist theme preference - runs before React to prevent flash
       (function() {
         var saved = localStorage.getItem('lumina_theme');
         if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {

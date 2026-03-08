@@ -17,15 +17,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
   return (
     <aside className={`
       fixed lg:relative lg:flex lg:translate-x-0
-      w-[272px] backdrop-blur-xl flex-col h-full z-30
+      w-[280px] backdrop-blur-xl flex-col h-full z-30
       transition-transform duration-300 ease-in-out
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     `}
     style={{ backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-primary)' }}
     >
-      <div className="p-6 h-full flex flex-col">
+      <div className="p-5 h-full flex flex-col">
         {/* Logo */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onNavigate(AppView.DASHBOARD)}>
             <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/25 group-hover:shadow-brand-500/40 transition-shadow">
               <i className="fas fa-microphone-lines text-sm"></i>
@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
         {/* Record Button */}
         <button
           onClick={onStartRecording}
-          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-[0.98] mb-10 group"
+          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:scale-[1.01] active:scale-[0.98] mb-8 group"
         >
           <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
             <i className="fas fa-plus text-xs"></i>
@@ -52,7 +52,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
         </button>
 
         {/* Navigation */}
-        <nav className="space-y-1 flex-1">
+        <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
+          <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+            Workspace
+          </p>
           <NavItem
             icon="fa-house"
             label="Home"
@@ -101,6 +104,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             isActive={currentView === AppView.NOTES}
             onClick={() => onNavigate(AppView.NOTES)}
           />
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+            Collaboration
+          </p>
           <NavItem
             icon="fa-share-nodes"
             label="Shared with me"
@@ -113,14 +119,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
         <div className="mb-4">
           <button
             onClick={onToggleTheme}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200"
-            style={{ color: 'var(--text-secondary)' }}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
+              </div>
+              {isDark ? 'Light Mode' : 'Dark Mode'}
             </div>
-            {isDark ? 'Light Mode' : 'Dark Mode'}
+            <i className="fas fa-arrows-rotate text-[10px]" style={{ color: 'var(--text-tertiary)' }}></i>
           </button>
         </div>
 
@@ -176,11 +185,10 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 relative group ${isActive
-      ? 'bg-brand-50/80 text-brand-700'
-      : ''
-      }`}
-    style={!isActive ? { color: 'var(--text-secondary)' } : {}}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 relative group`}
+    style={isActive
+      ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }
+      : { color: 'var(--text-secondary)' }}
     onMouseEnter={(e) => { if (!isActive) (e.currentTarget.style.backgroundColor = 'var(--hover-bg)'); }}
     onMouseLeave={(e) => { if (!isActive) (e.currentTarget.style.backgroundColor = 'transparent'); }}
   >

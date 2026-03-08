@@ -5,11 +5,13 @@ import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient
 
 interface AuthViewProps {
   onLogin: (user: UserProfile) => void;
+  isDark: boolean;
+  onToggleTheme: () => void;
 }
 
 type AuthMode = 'login' | 'signup' | 'phone' | 'otp_verify';
 
-const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
+const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -176,7 +178,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
+    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 md:p-6 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <button
+        onClick={onToggleTheme}
+        className="absolute top-5 right-5 z-20 h-10 px-3 rounded-xl flex items-center gap-2 text-xs font-semibold transition-colors"
+        style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-primary)', color: 'var(--text-secondary)' }}
+        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
+        {isDark ? 'Light' : 'Dark'}
+      </button>
+
       {/* Floating orbs */}
       <div className="absolute top-20 right-20 w-72 h-72 bg-brand-300/20 rounded-full blur-3xl animate-float"></div>
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-purple-300/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
@@ -195,16 +207,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
             <div className="w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl flex items-center justify-center text-white mx-auto mb-5 shadow-2xl shadow-brand-500/30 animate-glow">
               <i className="fas fa-microphone-lines text-2xl"></i>
             </div>
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-[3px] border-white flex items-center justify-center">
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-[3px] flex items-center justify-center" style={{ borderColor: 'var(--bg-secondary)' }}>
               <i className="fas fa-sparkles text-[6px] text-white"></i>
             </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Welcome to <span className="gradient-text">Lumina</span></h1>
-          <p className="text-sm md:text-base text-gray-500 font-medium">Your meetings, intelligently captured.</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-2 tracking-tight" style={{ color: 'var(--text-primary)' }}>Welcome to <span className="gradient-text">Lumina</span></h1>
+          <p className="text-sm md:text-base font-medium" style={{ color: 'var(--text-secondary)' }}>Your meetings, intelligently captured.</p>
         </div>
 
         {/* Auth Card */}
-        <div className="glass p-7 md:p-8 rounded-[28px] border border-white/40 shadow-2xl shadow-gray-900/5">
+        <div className="glass p-7 md:p-8 rounded-[28px] shadow-2xl shadow-gray-900/5" style={{ border: '1px solid var(--glass-border)' }}>
           {/* Error Message */}
           {error && (
             <div className="mb-5 p-3.5 bg-red-50/80 backdrop-blur border border-red-100 rounded-2xl text-sm text-red-600 flex items-start gap-2.5 animate-slide-down">
@@ -366,8 +378,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         </div>
 
         {/* Footer */}
-        <p className="text-center mt-8 text-[11px] text-gray-400 leading-relaxed px-4">
-          By continuing, you agree to Lumina's <span className="text-gray-600 font-semibold hover:underline cursor-pointer">Terms</span> and <span className="text-gray-600 font-semibold hover:underline cursor-pointer">Privacy</span>.
+        <p className="text-center mt-8 text-[11px] leading-relaxed px-4" style={{ color: 'var(--text-tertiary)' }}>
+          By continuing, you agree to Lumina's <span className="font-semibold hover:underline cursor-pointer" style={{ color: 'var(--text-secondary)' }}>Terms</span> and <span className="font-semibold hover:underline cursor-pointer" style={{ color: 'var(--text-secondary)' }}>Privacy</span>.
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Meeting } from '../types';
 
 interface DashboardProps {
@@ -20,8 +20,8 @@ const getMatchSnippet = (text: string, query: string, radius = 60): string | nul
   if (idx === -1) return null;
   const start = Math.max(0, idx - radius);
   const end = Math.min(text.length, idx + query.length + radius);
-  const prefix = start > 0 ? '…' : '';
-  const suffix = end < text.length ? '…' : '';
+  const prefix = start > 0 ? '...' : '';
+  const suffix = end < text.length ? '...' : '';
   return `${prefix}${text.slice(start, end)}${suffix}`;
 };
 
@@ -32,7 +32,7 @@ const highlightText = (text: string, query: string): React.ReactNode => {
   const regex = new RegExp(`(${escaped})`, 'gi');
   const parts = text.split(regex);
   return parts.map((part, i) =>
-    regex.test(part)
+    i % 2 === 1
       ? <mark key={i} className="bg-yellow-200/80 text-yellow-900 rounded-sm px-0.5">{part}</mark>
       : part
   );
@@ -50,6 +50,18 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   // Compute search results
   const searchResults = useMemo((): SearchMatch[] => {
@@ -95,6 +107,15 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
   }, [meetings, searchQuery]);
 
   const isSearching = searchQuery.trim().length >= 2;
+  const totalActionItems = useMemo(
+    () => meetings.reduce((sum, meeting) => sum + (meeting.actionItems?.length || 0), 0),
+    [meetings]
+  );
+  const averageMeetingMinutes = useMemo(() => {
+    if (meetings.length === 0) return 0;
+    const totalSeconds = meetings.reduce((sum, meeting) => sum + (meeting.duration || 0), 0);
+    return Math.round(totalSeconds / meetings.length / 60);
+  }, [meetings]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -271,34 +292,60 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto animate-fade-in">
+    <div className="p-4 md:p-8 max-w-[1200px] mx-auto animate-fade-in space-y-8 md:space-y-10">
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-10 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{getGreeting()} <span className="animate-fade-in inline-block">👋</span></h1>
-          <p className="text-sm md:text-base mt-1" style={{ color: 'var(--text-tertiary)' }}>Capture and summarize your conversations with AI.</p>
+      <header className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
+        <div
+          className="rounded-3xl p-6 md:p-8 overflow-hidden relative shadow-sm"
+          style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
+        >
+          <div
+            className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)' }}
+          />
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: 'var(--text-tertiary)' }}>
+            Dashboard
+          </p>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2" style={{ color: 'var(--text-primary)' }}>
+            {getGreeting()}
+          </h1>
+          <p className="text-sm md:text-base mb-6 max-w-xl" style={{ color: 'var(--text-secondary)' }}>
+            Capture meetings, organize notes, and keep your team aligned in one place.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={onStartRecording}
+              className="h-11 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+            >
+              <i className="fas fa-microphone-lines text-xs"></i>
+              Start recording
+            </button>
+            <button
+              onClick={handleImportClick}
+              className="h-11 px-5 rounded-xl text-sm font-semibold transition-colors"
+              style={{ border: '1px solid var(--border-primary)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)' }}
+            >
+              <i className="fas fa-upload mr-2 text-xs"></i>
+              Upload file
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl px-5 py-3 shadow-sm" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Minutes Recorded</p>
-            <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>{minutesUsed}</p>
-          </div>
-          <div className="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl px-5 py-3 shadow-lg shadow-brand-500/20">
-            <p className="text-[10px] font-bold text-brand-200 uppercase tracking-wider">Meetings</p>
-            <p className="text-2xl font-extrabold text-white tabular-nums">{meetings.length}</p>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Minutes Recorded" value={minutesUsed} accent="indigo" />
+          <StatCard label="Meetings" value={meetings.length} accent="emerald" />
+          <StatCard label="Action Items" value={totalActionItems} accent="amber" />
+          <StatCard label="Avg Duration (min)" value={averageMeetingMinutes} accent="sky" />
         </div>
       </header>
 
-      {/* ── Search Across All Meetings ── */}
+      {/* Search across all meetings */}
       {meetings.length > 0 && (
         <section className="mb-8 md:mb-10">
           <div
-            className={`relative glass rounded-2xl border transition-all duration-300 ${isSearchFocused
-              ? 'border-brand-300 shadow-lg shadow-brand-100/50 ring-4 ring-brand-50'
-              : 'shadow-sm'
-              }`}
-            style={!isSearchFocused ? { borderColor: 'var(--border-primary)' } : {}}
+            className={`relative glass rounded-2xl border transition-all duration-300 ${isSearchFocused ? 'shadow-lg' : 'shadow-sm'}`}
+            style={isSearchFocused
+              ? { borderColor: 'rgba(99, 102, 241, 0.45)', boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.14)' }
+              : { borderColor: 'var(--border-primary)' }}
           >
             <div className="flex items-center gap-3 px-4 md:px-5 py-3.5 md:py-4">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSearchFocused ? 'bg-brand-50 text-brand-500' : ''}`}
@@ -314,7 +361,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
-                placeholder="Search titles, transcripts, summaries, action items…"
+                placeholder="Search titles, transcripts, summaries, and action items..."
                 className="flex-1 bg-transparent text-sm md:text-[15px] placeholder-gray-400 focus:outline-none font-medium"
                 style={{ boxShadow: 'none', color: 'var(--text-primary)' }}
               />
@@ -328,7 +375,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                 </button>
               )}
               <div className="hidden md:flex items-center gap-1 pl-3" style={{ borderLeft: '1px solid var(--border-primary)' }}>
-                <kbd className="px-1.5 py-0.5 rounded-md text-[10px] font-mono" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-tertiary)' }}>⌘</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md text-[10px] font-mono" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-tertiary)' }}>Ctrl</kbd>
                 <kbd className="px-1.5 py-0.5 rounded-md text-[10px] font-mono" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-tertiary)' }}>K</kbd>
               </div>
             </div>
@@ -413,7 +460,16 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
         </section>
       )}
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
+      <section className="space-y-4 mb-8 md:mb-12">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+            Quick Actions
+          </h2>
+          <button onClick={onOpenCalendar} className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+            Manage calendar
+          </button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <QuickActionCard
           icon="fa-microphone"
           color="bg-blue-100 text-blue-600"
@@ -461,6 +517,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
           onClick={onOpenCalendar}
         />
         <input type="file" ref={fileInputRef} className="hidden" accept="audio/*,video/*,application/pdf" onChange={onFileChange} />
+        </div>
       </section>
 
       {/* Hide recent activity section when actively searching to avoid confusion */}
@@ -469,7 +526,9 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
           <section className="lg:col-span-2 order-2 lg:order-1">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg md:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Recent Activity</h2>
-              <button className="text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
+              <span className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+                {meetings.length} item{meetings.length !== 1 ? 's' : ''}
+              </span>
             </div>
 
             {meetings.length === 0 ? (
@@ -550,6 +609,31 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
           </section>
         </div>
       )}
+    </div>
+  );
+};
+
+const StatCard: React.FC<{ label: string; value: number; accent: 'indigo' | 'emerald' | 'amber' | 'sky' }> = ({ label, value, accent }) => {
+  const accentClass = {
+    indigo: 'text-brand-600 bg-brand-50',
+    emerald: 'text-emerald-600 bg-emerald-50',
+    amber: 'text-amber-600 bg-amber-50',
+    sky: 'text-sky-600 bg-sky-50',
+  }[accent];
+
+  return (
+    <div className="rounded-2xl p-4 shadow-sm" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>
+        {label}
+      </p>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+          {value}
+        </p>
+        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${accentClass}`}>
+          <i className="fas fa-chart-simple text-xs"></i>
+        </div>
+      </div>
     </div>
   );
 };

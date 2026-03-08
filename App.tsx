@@ -20,6 +20,14 @@ import AITemplatesView from './components/AITemplatesView';
 import TranslationView from './components/TranslationView';
 import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
+const getInitialTheme = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const saved = localStorage.getItem('lumina_theme');
+  if (saved === 'dark') return true;
+  if (saved === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
@@ -31,12 +39,27 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingMeetingTitle, setPendingMeetingTitle] = useState<string | undefined>(undefined);
   const [translationMeeting, setTranslationMeeting] = useState<Meeting | null>(null);
-  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const [isDark, setIsDark] = useState<boolean>(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemTheme = (event: MediaQueryListEvent) => {
+      if (!localStorage.getItem('lumina_theme')) {
+        setIsDark(event.matches);
+      }
+    };
+
+    media.addEventListener('change', handleSystemTheme);
+    return () => media.removeEventListener('change', handleSystemTheme);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setIsDark(prev => {
       const next = !prev;
-      document.documentElement.classList.toggle('dark', next);
       localStorage.setItem('lumina_theme', next ? 'dark' : 'light');
       return next;
     });
@@ -236,7 +259,7 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <AuthView onLogin={handleLogin} />;
+    return <AuthView onLogin={handleLogin} isDark={isDark} onToggleTheme={toggleTheme} />;
   }
 
   const selectedMeeting = meetings.find(m => m.id === selectedMeetingId);
@@ -245,8 +268,17 @@ const App: React.FC = () => {
   const hideMobileNav = [AppView.RECORDING, AppView.PROCESSING, AppView.MEETING_DETAIL].includes(currentView);
 
   return (
-    <div className="flex h-screen overflow-hidden relative" style={{ backgroundColor: 'var(--bg-primary)' }}>
-
+    <div className="relative flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute -left-20 -top-20 h-72 w-72 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 68%)' }}
+        />
+        <div
+          className="absolute -right-20 bottom-10 h-96 w-96 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 70%)' }}
+        />
+      </div>
 
       {/* Sidebar - Desktop Always Visible */}
       <Sidebar
@@ -269,29 +301,32 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className="flex-1 overflow-hidden relative flex flex-col h-full">
+      <main className="relative z-10 flex h-full flex-1 flex-col overflow-hidden">
         {/* Mobile Header */}
         {!hideMobileNav && (
-          <div className="lg:hidden flex items-center justify-between p-4 border-b shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-primary)' }}>
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b shrink-0 backdrop-blur-xl" style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--border-primary)' }}>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
                 style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
               >
                 <i className="fas fa-bars text-sm"></i>
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center text-white text-xs">
+                <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center text-white text-xs">
                   <i className="fas fa-microphone-lines"></i>
                 </div>
-                <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Lumina</span>
+                <div className="leading-tight">
+                  <p className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>Lumina</p>
+                  <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Workspace</p>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
                 style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                 title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
@@ -299,7 +334,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={handleStartRecording}
-                className="w-8 h-8 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center"
+                className="w-9 h-9 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center"
               >
                 <i className="fas fa-plus text-xs"></i>
               </button>
