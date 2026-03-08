@@ -167,10 +167,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
         </div>
       )}
 
-      <header className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-white z-10 sticky top-0">
+      <header className="p-6 md:p-8 flex justify-between items-center z-10 sticky top-0" style={{ borderBottom: '1px solid var(--border-primary)', backgroundColor: 'var(--card-bg)' }}>
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Account Settings</h1>
-          <p className="hidden md:block text-sm text-gray-500">Manage your profile and connected meeting platforms.</p>
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Account Settings</h1>
+          <p className="hidden md:block text-sm" style={{ color: 'var(--text-secondary)' }}>Manage your profile and connected meeting platforms.</p>
         </div>
         <div className="flex gap-2 md:gap-4">
           <button
@@ -185,7 +185,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
       <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full pb-24 lg:pb-8">
         <section className="mb-10 md:mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest">Profile Information</h2>
+            <h2 className="text-[10px] md:text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Profile Information</h2>
             {isEditing ? (
               <div className="flex gap-3">
                 <button
@@ -209,7 +209,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 p-6 rounded-3xl" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
             <div className="relative group shrink-0">
               <img
                 src={user.avatar}
@@ -232,20 +232,21 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
             <div className="flex-1 w-full">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="col-span-1">
-                  <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase block mb-1">Full Name</label>
+                  <label className="text-[9px] md:text-[10px] font-bold uppercase block mb-1" style={{ color: 'var(--text-tertiary)' }}>Full Name</label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
                     />
                   ) : (
-                    <p className="font-bold text-gray-900 text-base md:text-lg">{user.name}</p>
+                    <p className="font-bold text-base md:text-lg" style={{ color: 'var(--text-primary)' }}>{user.name}</p>
                   )}
                 </div>
                 <div className="col-span-1">
-                  <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase block mb-1">Account Type</label>
+                  <label className="text-[9px] md:text-[10px] font-bold uppercase block mb-1" style={{ color: 'var(--text-tertiary)' }}>Account Type</label>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] md:text-xs font-bold uppercase px-3 py-1 rounded-full bg-green-100 text-green-700">
                       Free Account
@@ -253,16 +254,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
                   </div>
                 </div>
                 <div className="col-span-1">
-                  <label className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase block mb-1">Email Address</label>
+                  <label className="text-[9px] md:text-[10px] font-bold uppercase block mb-1" style={{ color: 'var(--text-tertiary)' }}>Email Address</label>
                   {isEditing ? (
                     <input
                       type="email"
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
                     />
                   ) : (
-                    <p className="text-sm font-medium text-gray-600">{user.email}</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
                   )}
                 </div>
                 <div className="col-span-1">
@@ -288,7 +290,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
 
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest">Connected Apps</h2>
+            <h2 className="text-[10px] md:text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Connected Apps</h2>
             <span className="text-[10px] bg-green-50 text-green-600 font-bold px-2 py-0.5 rounded-full uppercase">Real-time Sync</span>
           </div>
 
@@ -342,13 +344,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, onLogout 
 };
 
 const AppCard: React.FC<{ name: string, icon: string, color: string, isConnected: boolean, onToggle: () => void }> = ({ name, icon, color, isConnected, onToggle }) => (
-  <div className="bg-white border border-gray-100 p-4 md:p-5 rounded-2xl shadow-sm flex items-center gap-4 hover:border-blue-100 transition-colors">
-    <div className={`w-10 h-10 md:w-12 md:h-12 bg-gray-50 rounded-xl flex items-center justify-center text-lg md:text-xl ${color}`}>
+  <div className="p-4 md:p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-colors" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl ${color}`} style={{ backgroundColor: 'var(--bg-tertiary)' }}>
       <i className={icon}></i>
     </div>
     <div className="flex-1">
-      <h4 className="font-bold text-gray-900 text-xs md:text-sm">{name}</h4>
-      <p className="text-[9px] md:text-[10px] text-gray-500 font-medium">{isConnected ? 'Syncing active' : 'Not connected'}</p>
+      <h4 className="font-bold text-xs md:text-sm" style={{ color: 'var(--text-primary)' }}>{name}</h4>
+      <p className="text-[9px] md:text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>{isConnected ? 'Syncing active' : 'Not connected'}</p>
     </div>
     <button
       onClick={onToggle}

@@ -180,10 +180,10 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
   ];
 
   return (
-    <div className="h-full flex bg-gray-50">
+    <div className="h-full flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Sidebar - Conversations */}
-      <div className="w-72 bg-white border-r border-gray-200 flex-col hidden lg:flex">
-        <div className="p-4 border-b border-gray-100">
+      <div className="w-72 flex-col hidden lg:flex" style={{ backgroundColor: 'var(--card-bg)', borderRight: '1px solid var(--border-secondary)' }}>
+        <div className="p-4" style={{ borderBottom: '1px solid var(--border-primary)' }}>
           <button
             onClick={handleNewConversation}
             className="w-full px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
@@ -195,7 +195,7 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
 
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-gray-400">
+            <div className="p-4 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
               No conversations yet
             </div>
           ) : (
@@ -203,11 +203,12 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
               <button
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv)}
-                className={`w-full text-left p-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${activeConversation?.id === conv.id ? 'bg-brand-50 border-l-2 border-l-brand-500' : ''
+                className={`w-full text-left p-3 transition-colors ${activeConversation?.id === conv.id ? 'bg-brand-50 border-l-2 border-l-brand-500' : ''
                   }`}
+                style={{ borderBottom: '1px solid var(--border-primary)' }}
               >
-                <p className="text-sm font-medium text-gray-800 truncate">{conv.title}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{conv.title}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                   {new Date(conv.updatedAt).toLocaleDateString()}
                 </p>
               </button>
@@ -219,15 +220,15 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+        <div className="px-6 py-4 shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-secondary)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-brand-600 rounded-xl flex items-center justify-center">
                 <i className="fas fa-robot text-white text-sm"></i>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">AI Meeting Assistant</h1>
-                <p className="text-xs text-gray-500">
+                <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>AI Meeting Assistant</h1>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                   {searchScope === 'all'
                     ? `Searching across ${meetings.length} meetings`
                     : `${selectedMeetingIds.length} meeting(s) selected`
@@ -238,10 +239,11 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
 
             <div className="flex items-center gap-2">
               {/* Scope Toggle */}
-              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+              <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <button
                   onClick={() => setSearchScope('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${searchScope === 'all' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${searchScope === 'all' ? 'shadow-sm text-brand-600' : ''}`}
+                  style={searchScope === 'all' ? { backgroundColor: 'var(--card-bg)' } : { color: 'var(--text-secondary)' }}
                 >
                   All Meetings
                 </button>
@@ -250,7 +252,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
                     setSearchScope('selected');
                     if (selectedMeetingIds.length === 0) setShowMeetingSelector(true);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${searchScope === 'selected' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${searchScope === 'selected' ? 'shadow-sm text-brand-600' : ''}`}
+                  style={searchScope === 'selected' ? { backgroundColor: 'var(--card-bg)' } : { color: 'var(--text-secondary)' }}
                 >
                   Selected
                 </button>
@@ -259,7 +262,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
               {searchScope === 'selected' && (
                 <button
                   onClick={() => setShowMeetingSelector(!showMeetingSelector)}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                 >
                   <i className="fas fa-filter mr-1"></i>
                   Filter ({selectedMeetingIds.length})
@@ -277,18 +281,19 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
 
           {/* Meeting Selector Dropdown */}
           {showMeetingSelector && (
-            <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto">
+            <div className="mt-3 rounded-xl p-3 max-h-48 overflow-y-auto" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)' }}>
               <div className="space-y-1">
                 {meetings.slice(0, 20).map(m => (
-                  <label key={m.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                  <label key={m.id} className="flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
                       checked={selectedMeetingIds.includes(m.id)}
                       onChange={() => toggleMeetingSelection(m.id)}
-                      className="w-4 h-4 text-brand-600 rounded border-gray-300"
+                      className="w-4 h-4 text-brand-600 rounded"
+                      style={{ borderColor: 'var(--border-secondary)' }}
                     />
-                    <span className="text-sm text-gray-700 truncate">{m.title}</span>
-                    <span className="text-[10px] text-gray-400 ml-auto whitespace-nowrap">
+                    <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{m.title}</span>
+                    <span className="text-[10px] ml-auto whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>
                       {new Date(m.date).toLocaleDateString()}
                     </span>
                   </label>
@@ -306,8 +311,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
               <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-brand-100 rounded-2xl flex items-center justify-center mb-4">
                 <i className="fas fa-comments text-2xl text-brand-500"></i>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Ask anything about your meetings</h3>
-              <p className="text-sm text-gray-500 mb-6 max-w-md">
+              <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Ask anything about your meetings</h3>
+              <p className="text-sm mb-6 max-w-md" style={{ color: 'var(--text-secondary)' }}>
                 Get cross-meeting intelligence, trend analysis, and instant answers from your entire meeting history.
               </p>
 
@@ -319,7 +324,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
                       setInputMessage(q);
                       inputRef.current?.focus();
                     }}
-                    className="text-left p-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors"
+                    className="text-left p-3 rounded-xl text-sm hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors"
+                    style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)', color: 'var(--text-secondary)' }}
                   >
                     <i className="fas fa-lightbulb text-amber-400 mr-2"></i>
                     {q}
@@ -337,8 +343,9 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
                   <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-1' : 'order-1'}`}>
                     <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user'
                       ? 'bg-brand-600 text-white'
-                      : 'bg-white border border-gray-200 text-gray-800'
-                      }`}>
+                      : ''
+                      }`}
+                      style={msg.role !== 'user' ? { backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' } : {}}>
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                     </div>
 
@@ -362,7 +369,7 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
                       </div>
                     )}
 
-                    <p className="text-[10px] text-gray-400 mt-1 px-1">
+                    <p className="text-[10px] mt-1 px-1" style={{ color: 'var(--text-tertiary)' }}>
                       {new Date(msg.createdAt).toLocaleTimeString()}
                     </p>
                   </div>
@@ -371,8 +378,8 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="rounded-2xl px-4 py-3" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)' }}>
+                    <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                       <div className="flex gap-1">
                         <span className="w-2 h-2 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                         <span className="w-2 h-2 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
@@ -390,7 +397,7 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
         </div>
 
         {/* Input */}
-        <div className="bg-white border-t border-gray-200 p-4 shrink-0">
+        <div className="p-4 shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderTop: '1px solid var(--border-secondary)' }}>
           <div className="flex items-end gap-3 max-w-4xl mx-auto">
             <div className="flex-1 relative">
               <textarea
@@ -400,8 +407,14 @@ const AIChatView: React.FC<AIChatViewProps> = ({ meetings, onViewMeeting }) => {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about your meetings... (Enter to send, Shift+Enter for new line)"
                 rows={1}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white"
-                style={{ minHeight: '44px', maxHeight: '120px' }}
+                className="w-full px-4 py-3 rounded-2xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-secondary)',
+                  color: 'var(--text-primary)',
+                  minHeight: '44px',
+                  maxHeight: '120px'
+                }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = '44px';

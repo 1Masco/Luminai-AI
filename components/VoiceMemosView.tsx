@@ -244,17 +244,17 @@ const VoiceMemosView: React.FC<VoiceMemosViewProps> = ({ meetings, onViewMeeting
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-5 shrink-0">
+      <div className="px-6 py-5 shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-secondary)' }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center">
               <i className="fas fa-microphone text-white"></i>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Voice Memos</h1>
-              <p className="text-xs text-gray-500">{memos.length} memo{memos.length !== 1 ? 's' : ''}</p>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Voice Memos</h1>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{memos.length} memo{memos.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
 
@@ -281,20 +281,22 @@ const VoiceMemosView: React.FC<VoiceMemosViewProps> = ({ meetings, onViewMeeting
         {/* Search & Filter */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-tertiary)' }}></i>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search memos..."
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCategory === 'all' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCategory === 'all' ? 'shadow-sm' : ''}`}
+              style={selectedCategory === 'all' ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' } : { color: 'var(--text-secondary)' }}
             >
               All
             </button>
@@ -302,7 +304,8 @@ const VoiceMemosView: React.FC<VoiceMemosViewProps> = ({ meetings, onViewMeeting
               <button
                 key={cat.value}
                 onClick={() => setSelectedCategory(cat.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCategory === cat.value ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedCategory === cat.value ? 'shadow-sm' : ''}`}
+                style={selectedCategory === cat.value ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' } : { color: 'var(--text-secondary)' }}
               >
                 <i className={`fas ${cat.icon} mr-1`}></i>
                 {cat.label}

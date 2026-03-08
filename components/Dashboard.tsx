@@ -275,13 +275,13 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-10 gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">{getGreeting()} <span className="animate-fade-in inline-block">👋</span></h1>
-          <p className="text-sm md:text-base text-gray-400 mt-1">Capture and summarize your conversations with AI.</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{getGreeting()} <span className="animate-fade-in inline-block">👋</span></h1>
+          <p className="text-sm md:text-base mt-1" style={{ color: 'var(--text-tertiary)' }}>Capture and summarize your conversations with AI.</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl px-5 py-3 shadow-sm">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Minutes Recorded</p>
-            <p className="text-2xl font-extrabold text-gray-900 tabular-nums">{minutesUsed}</p>
+          <div className="rounded-2xl px-5 py-3 shadow-sm" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Minutes Recorded</p>
+            <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>{minutesUsed}</p>
           </div>
           <div className="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl px-5 py-3 shadow-lg shadow-brand-500/20">
             <p className="text-[10px] font-bold text-brand-200 uppercase tracking-wider">Meetings</p>
@@ -296,11 +296,14 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
           <div
             className={`relative glass rounded-2xl border transition-all duration-300 ${isSearchFocused
               ? 'border-brand-300 shadow-lg shadow-brand-100/50 ring-4 ring-brand-50'
-              : 'border-gray-200/60 hover:border-gray-300/60 shadow-sm'
+              : 'shadow-sm'
               }`}
+            style={!isSearchFocused ? { borderColor: 'var(--border-primary)' } : {}}
           >
             <div className="flex items-center gap-3 px-4 md:px-5 py-3.5 md:py-4">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSearchFocused ? 'bg-brand-50 text-brand-500' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSearchFocused ? 'bg-brand-50 text-brand-500' : ''}`}
+                style={!isSearchFocused ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' } : {}}
+              >
                 <i className="fas fa-magnifying-glass text-xs"></i>
               </div>
               <input
@@ -312,20 +315,21 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
                 placeholder="Search titles, transcripts, summaries, action items…"
-                className="flex-1 bg-transparent text-sm md:text-[15px] text-gray-800 placeholder-gray-400 focus:outline-none font-medium"
-                style={{ boxShadow: 'none' }}
+                className="flex-1 bg-transparent text-sm md:text-[15px] placeholder-gray-400 focus:outline-none font-medium"
+                style={{ boxShadow: 'none', color: 'var(--text-primary)' }}
               />
               {searchQuery && (
                 <button
                   onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
-                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}
                 >
                   <i className="fas fa-xmark text-xs"></i>
                 </button>
               )}
-              <div className="hidden md:flex items-center gap-1 pl-3 border-l border-gray-200/50">
-                <kbd className="px-1.5 py-0.5 bg-gray-100/80 border border-gray-200/60 rounded-md text-[10px] font-mono text-gray-400">⌘</kbd>
-                <kbd className="px-1.5 py-0.5 bg-gray-100/80 border border-gray-200/60 rounded-md text-[10px] font-mono text-gray-400">K</kbd>
+              <div className="hidden md:flex items-center gap-1 pl-3" style={{ borderLeft: '1px solid var(--border-primary)' }}>
+                <kbd className="px-1.5 py-0.5 rounded-md text-[10px] font-mono" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-tertiary)' }}>⌘</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md text-[10px] font-mono" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-tertiary)' }}>K</kbd>
               </div>
             </div>
           </div>
@@ -350,12 +354,12 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
               </div>
 
               {searchResults.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-8 text-center">
-                  <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl text-gray-300">
+                <div className="rounded-2xl border border-dashed p-8 text-center" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-secondary)' }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
                     <i className="fas fa-magnifying-glass"></i>
                   </div>
-                  <h3 className="text-base font-bold text-gray-800 mb-1">No matches for "{searchQuery}"</h3>
-                  <p className="text-sm text-gray-500">Try a different search term or check your spelling.</p>
+                  <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>No matches for "{searchQuery}"</h3>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Try a different search term or check your spelling.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -363,16 +367,17 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                     <div
                       key={result.meeting.id}
                       onClick={() => onViewMeeting(result.meeting.id)}
-                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
+                      className="p-4 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-gray-50 rounded-lg flex flex-col items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shrink-0">
+                        <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
                           <span className="text-[8px] font-bold uppercase">{new Date(result.meeting.date).toLocaleString('default', { month: 'short' })}</span>
                           <span className="text-sm font-bold">{new Date(result.meeting.date).getDate()}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-bold text-gray-900 text-sm truncate">
+                            <h4 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                               {highlightText(result.meeting.title, searchQuery)}
                             </h4>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${matchFieldColor(result.matchField)}`}>
@@ -463,17 +468,17 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <section className="lg:col-span-2 order-2 lg:order-1">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">Recent Activity</h2>
+              <h2 className="text-lg md:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Recent Activity</h2>
               <button className="text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
             </div>
 
             {meetings.length === 0 ? (
-              <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-8 md:p-12 text-center">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mx-auto mb-4 text-xl md:text-2xl">
+              <div className="rounded-3xl border border-dashed p-8 md:p-12 text-center" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-secondary)' }}>
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-xl md:text-2xl" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
                   <i className="fas fa-file-invoice"></i>
                 </div>
-                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No recordings yet</h3>
-                <p className="text-sm text-gray-500 mb-6">Start your first recording to see it here.</p>
+                <h3 className="text-base md:text-lg font-medium mb-1" style={{ color: 'var(--text-primary)' }}>No recordings yet</h3>
+                <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Start your first recording to see it here.</p>
                 <button
                   onClick={onStartRecording}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -486,20 +491,20 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                 {meetings.map((meeting, index) => (
                   <div
                     key={meeting.id}
-                    className="bg-white p-3.5 md:p-4 rounded-2xl border border-gray-100/80 shadow-sm flex items-center gap-3 md:gap-4 hover:border-brand-200 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                    className="p-3.5 md:p-4 rounded-2xl shadow-sm flex items-center gap-3 md:gap-4 hover:shadow-md transition-all duration-200 cursor-pointer group"
                     onClick={() => onViewMeeting(meeting.id)}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    style={{ animationDelay: `${index * 50}ms`, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
                   >
-                    <div className="w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 group-hover:from-brand-50 group-hover:to-brand-100 group-hover:text-brand-600 transition-all shrink-0">
+                    <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl flex flex-col items-center justify-center group-hover:from-brand-50 group-hover:to-brand-100 group-hover:text-brand-600 transition-all shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
                       <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-wide">{new Date(meeting.date).toLocaleString('default', { month: 'short' })}</span>
                       <span className="text-sm md:text-base font-extrabold -mt-0.5">{new Date(meeting.date).getDate()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-gray-900 leading-tight truncate text-sm md:text-[15px]">{meeting.title}</h4>
+                      <h4 className="font-bold leading-tight truncate text-sm md:text-[15px]" style={{ color: 'var(--text-primary)' }}>{meeting.title}</h4>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-gray-400 font-medium">{Math.floor(meeting.duration / 60)}m {meeting.duration % 60}s</span>
-                        <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                        <span className="text-[11px] text-gray-400 font-medium">{meeting.transcript.length} segments</span>
+                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{Math.floor(meeting.duration / 60)}m {meeting.duration % 60}s</span>
+                        <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--border-secondary)' }}></span>
+                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{meeting.transcript.length} segments</span>
                         {meeting.actionItems && meeting.actionItems.length > 0 && (
                           <>
                             <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
@@ -530,15 +535,15 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
 
           <section className="lg:col-span-1 order-1 lg:order-2">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">Today</h2>
+              <h2 className="text-lg md:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Today</h2>
               <button onClick={onOpenCalendar} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase">Edit Sync</button>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shadow-sm">
+            <div className="rounded-2xl p-4 md:p-6 shadow-sm" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
               <div className="space-y-4 md:space-y-6">
                 <UpcomingMeeting time="10:00 AM" title="Product Sync" platform="google_meet" isRecording={true} />
                 <UpcomingMeeting time="1:30 PM" title="Design Review" platform="zoom" isRecording={false} />
               </div>
-              <button onClick={onOpenCalendar} className="w-full mt-6 py-2 md:py-3 border border-gray-100 rounded-xl text-[10px] md:text-xs font-bold text-gray-500 hover:bg-gray-50 transition-colors">
+              <button onClick={onOpenCalendar} className="w-full mt-6 py-2 md:py-3 rounded-xl text-[10px] md:text-xs font-bold transition-colors" style={{ border: '1px solid var(--border-primary)', color: 'var(--text-secondary)' }}>
                 View Full Schedule
               </button>
             </div>
@@ -551,14 +556,15 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
 
 const QuickActionCard: React.FC<{ icon: string, color: string, activeColor: string, title: string, desc: string, onClick: () => void }> = ({ icon, color, activeColor, title, desc, onClick }) => (
   <div
-    className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-gray-200/80 transition-all duration-200 cursor-pointer group hover:scale-[1.02] active:scale-[0.98]"
+    className="p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer group hover:scale-[1.02] active:scale-[0.98]"
+    style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
     onClick={onClick}
   >
     <div className={`w-10 h-10 md:w-12 md:h-12 ${color} rounded-xl flex items-center justify-center mb-3 md:mb-4 text-sm md:text-lg ${activeColor} group-hover:text-white transition-all group-hover:shadow-md group-hover:scale-110`}>
       <i className={`fas ${icon}`}></i>
     </div>
-    <h3 className="font-bold text-gray-800 mb-0.5 text-xs md:text-sm">{title}</h3>
-    <p className="text-[10px] md:text-xs text-gray-400">{desc}</p>
+    <h3 className="font-bold mb-0.5 text-xs md:text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+    <p className="text-[10px] md:text-xs" style={{ color: 'var(--text-tertiary)' }}>{desc}</p>
   </div>
 );
 
@@ -572,7 +578,7 @@ const UpcomingMeeting: React.FC<{ time: string, title: string, platform: string,
     </div>
     <div className="flex-1 overflow-hidden">
       <div className="flex justify-between items-center mb-0.5">
-        <span className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider">{time}</span>
+        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{time}</span>
         {isRecording && (
           <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 text-red-600 rounded-full text-[8px] md:text-[9px] font-bold uppercase tracking-tight animate-pulse">
             <span className="w-1 h-1 md:w-1.5 md:h-1.5 bg-red-600 rounded-full"></span>
@@ -580,7 +586,7 @@ const UpcomingMeeting: React.FC<{ time: string, title: string, platform: string,
           </span>
         )}
       </div>
-      <h4 className="text-xs md:text-sm font-bold text-gray-800 truncate">{title}</h4>
+      <h4 className="text-xs md:text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{title}</h4>
     </div>
   </div>
 );

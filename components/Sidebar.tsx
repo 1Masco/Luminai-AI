@@ -9,16 +9,20 @@ interface SidebarProps {
   user: UserProfile;
   isOpen: boolean;
   onClose: () => void;
+  isDark: boolean;
+  onToggleTheme: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecording, user, isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecording, user, isOpen, onClose, isDark, onToggleTheme }) => {
   return (
     <aside className={`
       fixed lg:relative lg:flex lg:translate-x-0
-      w-[272px] bg-white/80 backdrop-blur-xl border-r border-gray-200/50 flex-col h-full z-30
+      w-[272px] backdrop-blur-xl flex-col h-full z-30
       transition-transform duration-300 ease-in-out
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-    `}>
+    `}
+    style={{ backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-primary)' }}
+    >
       <div className="p-6 h-full flex flex-col">
         {/* Logo */}
         <div className="flex items-center justify-between mb-10">
@@ -27,11 +31,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
               <i className="fas fa-microphone-lines text-sm"></i>
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-extrabold tracking-tight text-gray-900">Lumina</span>
+              <span className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Lumina</span>
               <span className="text-[9px] font-bold text-brand-500 uppercase tracking-widest -mt-0.5">AI Meeting</span>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="lg:hidden p-2 rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>
             <i className="fas fa-xmark"></i>
           </button>
         </div>
@@ -105,19 +109,36 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
           />
         </nav>
 
+        {/* Theme Toggle */}
+        <div className="mb-4">
+          <button
+            onClick={onToggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200"
+            style={{ color: 'var(--text-secondary)' }}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
+            </div>
+            {isDark ? 'Light Mode' : 'Dark Mode'}
+          </button>
+        </div>
+
         {/* User Profile */}
-        <div className="pt-5 border-t border-gray-100/80 mt-auto">
+        <div className="pt-5 mt-auto" style={{ borderTop: '1px solid var(--border-primary)' }}>
           <button
             onClick={() => onNavigate(AppView.PROFILE)}
             className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 ${currentView === AppView.PROFILE
               ? 'bg-brand-50 shadow-sm'
-              : 'hover:bg-gray-50'
+              : ''
               }`}
+            style={currentView !== AppView.PROFILE ? { backgroundColor: 'transparent' } : {}}
           >
             <div className="relative">
               <img
                 src={user.avatar}
-                className="w-10 h-10 rounded-xl border-2 border-white shadow-sm object-cover"
+                className="w-10 h-10 rounded-xl border-2 shadow-sm object-cover"
+                style={{ borderColor: 'var(--card-bg)' }}
                 alt="Avatar"
                 onError={(e) => {
                   const img = e.currentTarget;
@@ -126,17 +147,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
                   if (fallback) fallback.style.display = 'flex';
                 }}
               />
-              <div className="avatar-fallback w-10 h-10 rounded-xl border-2 border-white shadow-sm bg-gradient-to-br from-brand-500 to-purple-600 items-center justify-center text-white text-sm font-bold" style={{ display: 'none' }}>
+              <div className="avatar-fallback w-10 h-10 rounded-xl border-2 shadow-sm bg-gradient-to-br from-brand-500 to-purple-600 items-center justify-center text-white text-sm font-bold" style={{ display: 'none', borderColor: 'var(--card-bg)' }}>
                 {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 rounded-full" style={{ borderColor: 'var(--card-bg)' }}></div>
             </div>
             <div className="flex-1 text-left overflow-hidden">
-              <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-              <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{user.name}</p>
+              <p className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>{user.email}</p>
             </div>
-            <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center">
-              <i className="fas fa-chevron-right text-[10px] text-gray-300"></i>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+              <i className="fas fa-chevron-right text-[10px]" style={{ color: 'var(--text-tertiary)' }}></i>
             </div>
           </button>
         </div>
@@ -157,14 +178,19 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
     onClick={onClick}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 relative group ${isActive
       ? 'bg-brand-50/80 text-brand-700'
-      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+      : ''
       }`}
+    style={!isActive ? { color: 'var(--text-secondary)' } : {}}
+    onMouseEnter={(e) => { if (!isActive) (e.currentTarget.style.backgroundColor = 'var(--hover-bg)'); }}
+    onMouseLeave={(e) => { if (!isActive) (e.currentTarget.style.backgroundColor = 'transparent'); }}
   >
     {isActive && (
       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-brand-500 rounded-r-full"></div>
     )}
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isActive ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/25' : 'bg-transparent text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-500'
-      }`}>
+    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isActive ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/25' : ''
+      }`}
+      style={!isActive ? { color: 'var(--text-tertiary)' } : {}}
+    >
       <i className={`fas ${icon} text-xs`}></i>
     </div>
     {label}

@@ -214,7 +214,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
   };
 
   return (
-    <div className="h-full flex flex-col bg-white relative">
+    <div className="h-full flex flex-col relative" style={{ backgroundColor: 'var(--card-bg)' }}>
       {showShareToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 glass-dark text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-slide-down w-[90%] md:w-auto border border-white/10">
           <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
@@ -309,19 +309,19 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
       )}
 
       {/* Header */}
-      <div className="px-4 md:px-6 py-4 border-b border-gray-100/80 bg-gradient-to-r from-gray-50/80 to-white flex items-center justify-between shrink-0">
+      <div className="px-4 md:px-6 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--border-primary)', backgroundColor: 'var(--card-bg)' }}>
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={onBack} className="w-9 h-9 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-700 transition-all flex items-center justify-center shrink-0">
+          <button onClick={onBack} className="w-9 h-9 rounded-xl transition-all flex items-center justify-center shrink-0" style={{ color: 'var(--text-tertiary)' }}>
             <i className="fas fa-arrow-left text-sm"></i>
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-base md:text-lg font-extrabold text-gray-900 truncate tracking-tight">{meeting.title}</h1>
+              <h1 className="text-base md:text-lg font-extrabold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{meeting.title}</h1>
               {hasUnsavedChanges && (
                 <span className="hidden md:inline-block text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Unsaved</span>
               )}
             </div>
-            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+            <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
               {new Date(meeting.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(meeting.duration)}
             </p>
           </div>
@@ -330,7 +330,8 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
           <div className="relative">
             <button
               onClick={() => setShowPDFMenu(!showPDFMenu)}
-              className="h-9 px-3 md:px-4 text-xs md:text-sm font-semibold border border-gray-200/80 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-2 transition-all"
+              className="h-9 px-3 md:px-4 text-xs md:text-sm font-semibold rounded-xl flex items-center gap-2 transition-all"
+              style={{ border: '1px solid var(--border-secondary)', color: 'var(--text-secondary)' }}
             >
               <i className="fas fa-file-pdf text-red-400"></i>
               <span className="hidden md:inline">Export</span>
@@ -409,7 +410,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Responsive Content Tabs */}
-        <div className="flex border-b border-gray-100 px-4 md:hidden shrink-0">
+        <div className="flex border-b px-4 md:hidden shrink-0" style={{ borderColor: 'var(--border-primary)' }}>
           <TabButton active={activeTab === 'transcript'} onClick={() => setActiveTab('transcript')} label="Transcript" />
           <TabButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} label="Summary" />
           <TabButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} label="Coach" />
@@ -417,14 +418,14 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
         </div>
 
         {/* Desktop Sidebars/Main */}
-        <div className={`flex-1 flex flex-col overflow-hidden border-r border-gray-100 ${activeTab === 'chat' ? 'hidden md:flex' : 'flex'}`}>
-          <div className="hidden md:flex border-b border-gray-100 px-6 shrink-0">
+        <div className={`flex-1 flex flex-col overflow-hidden ${activeTab === 'chat' ? 'hidden md:flex' : 'flex'}`} style={{ borderRight: '1px solid var(--border-primary)' }}>
+          <div className="hidden md:flex px-6 shrink-0" style={{ borderBottom: '1px solid var(--border-primary)' }}>
             <TabButton active={activeTab === 'transcript'} onClick={() => setActiveTab('transcript')} label="Transcript" />
             <TabButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} label="AI Summary & Notes" />
             <TabButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} label="🧠 Coach" />
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/20">
+          <div className="flex-1 overflow-y-auto p-4 md:p-8" style={{ backgroundColor: 'var(--bg-primary)' }}>
             {activeTab === 'transcript' && (
               <div className="max-w-3xl mx-auto space-y-5 md:space-y-6 pb-10">
                 {meeting.transcript.length === 0 ? (
@@ -445,10 +446,10 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className="font-bold text-xs md:text-sm text-gray-900">{p.speaker}</span>
-                            <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded-md">{formatTime(p.timestamp)}</span>
+                            <span className="font-bold text-xs md:text-sm" style={{ color: 'var(--text-primary)' }}>{p.speaker}</span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md" style={{ color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-tertiary)' }}>{formatTime(p.timestamp)}</span>
                           </div>
-                          <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed bg-white p-3 md:p-4 rounded-xl rounded-tl-sm border border-gray-100/80 shadow-sm">{p.text}</p>
+                          <p className="text-sm md:text-[15px] leading-relaxed p-3 md:p-4 rounded-xl rounded-tl-sm shadow-sm" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>{p.text}</p>
                         </div>
                       </div>
                     );
@@ -487,19 +488,19 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                       <textarea
                         value={summary}
                         onChange={(e) => { setSummary(e.target.value); setHasUnsavedChanges(true); }}
-                        className="w-full text-gray-700 leading-relaxed text-sm md:text-base min-h-[150px] resize-none focus:outline-none placeholder:text-gray-300"
+                        className="w-full leading-relaxed text-sm md:text-base min-h-[150px] resize-none focus:outline-none"
                         placeholder="Meeting summary will appear here..."
-                        style={{ boxShadow: 'none' }}
+                        style={{ boxShadow: 'none', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}
                       />
                     </div>
 
-                    <div className="bg-white p-5 md:p-8 rounded-2xl md:rounded-3xl border border-gray-100/80 shadow-sm">
+                    <div className="p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-sm" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
                       <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
                             <i className="fas fa-list-check text-emerald-500 text-xs"></i>
                           </div>
-                          <h3 className="font-bold text-sm text-gray-900">Action Items</h3>
+                          <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Action Items</h3>
                           {actionItems.length > 0 && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{actionItems.length}</span>}
                         </div>
                         <button
@@ -575,18 +576,18 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
 
         {/* AI Chat Side Panel */}
         <div className={`
-          flex-col bg-white w-full md:w-80 lg:w-96 border-l border-gray-100 shrink-0
+          flex-col w-full md:w-80 lg:w-96 shrink-0
           ${activeTab === 'chat' ? 'flex h-full' : 'hidden md:flex'}
-        `}>
-          <div className="px-5 py-4 border-b border-gray-100/80 bg-gradient-to-r from-brand-50/60 to-white flex items-center justify-between shrink-0">
+        `} style={{ backgroundColor: 'var(--card-bg)', borderLeft: '1px solid var(--border-primary)' }}>
+          <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--border-primary)' }}>
             <div>
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <div className="w-7 h-7 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center shadow-sm shadow-brand-500/20">
                   <i className="fas fa-robot text-white text-[10px]"></i>
                 </div>
                 Ask Lumina
               </h3>
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest mt-0.5">Meeting AI Assistant</p>
+              <p className="text-[9px] uppercase font-bold tracking-widest mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Meeting AI Assistant</p>
             </div>
             <button onClick={() => setActiveTab('transcript')} className="md:hidden w-8 h-8 rounded-xl text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors">
               <i className="fas fa-xmark text-sm"></i>
@@ -599,16 +600,17 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
                 <div className="w-12 h-12 bg-gradient-to-br from-brand-50 to-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
                   <i className="fas fa-message text-brand-400"></i>
                 </div>
-                <p className="text-xs font-semibold text-gray-500 mb-1">Ask about this meeting</p>
-                <p className="text-[11px] text-gray-400">"What were the key decisions?"</p>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Ask about this meeting</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>"What were the key decisions?"</p>
               </div>
             )}
             {chatHistory.map((chat, i) => (
               <div key={i} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
                 <div className={`max-w-[88%] px-4 py-2.5 rounded-2xl text-xs md:text-sm leading-relaxed ${chat.role === 'user'
                   ? 'bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-br-sm shadow-md shadow-brand-500/20'
-                  : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'
-                  }`}>
+                  : ''
+                  }`}
+                  style={chat.role !== 'user' ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' } : {}}>
                   {chat.text}
                 </div>
               </div>
@@ -626,15 +628,15 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
             )}
           </div>
 
-          <form onSubmit={handleAskAI} className="p-4 border-t border-gray-100/80 bg-gray-50/30">
+          <form onSubmit={handleAskAI} className="p-4" style={{ borderTop: '1px solid var(--border-primary)' }}>
             <div className="relative flex items-center">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask something about this meeting..."
-                className="w-full bg-white border border-gray-200/80 rounded-xl py-2.5 pl-4 pr-12 text-xs md:text-sm placeholder:text-gray-300 focus:border-brand-300 transition-all"
-                style={{ boxShadow: 'none' }}
+                className="w-full rounded-xl py-2.5 pl-4 pr-12 text-xs md:text-sm transition-all"
+                style={{ boxShadow: 'none', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
               />
               <button
                 type="submit"
@@ -656,8 +658,9 @@ const TabButton: React.FC<{ active: boolean, onClick: () => void, label: string 
     onClick={onClick}
     className={`flex-1 md:flex-none px-4 py-4 text-[11px] md:text-xs font-bold border-b-2 transition-all uppercase tracking-wider ${active
       ? 'border-brand-500 text-brand-600'
-      : 'border-transparent text-gray-400 hover:text-gray-600'
+      : 'border-transparent'
       }`}
+    style={!active ? { color: 'var(--text-tertiary)' } : {}}
   >
     {label}
   </button>

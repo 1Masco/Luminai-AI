@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppView, Meeting, Note, UserProfile } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -31,6 +31,16 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingMeetingTitle, setPendingMeetingTitle] = useState<string | undefined>(undefined);
   const [translationMeeting, setTranslationMeeting] = useState<Meeting | null>(null);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  const toggleTheme = useCallback(() => {
+    setIsDark(prev => {
+      const next = !prev;
+      document.documentElement.classList.toggle('dark', next);
+      localStorage.setItem('lumina_theme', next ? 'dark' : 'light');
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const savedMeetings = localStorage.getItem('lumina_meetings');
@@ -235,7 +245,7 @@ const App: React.FC = () => {
   const hideMobileNav = [AppView.RECORDING, AppView.PROCESSING, AppView.MEETING_DETAIL].includes(currentView);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden relative">
+    <div className="flex h-screen overflow-hidden relative" style={{ backgroundColor: 'var(--bg-primary)' }}>
 
 
       {/* Sidebar - Desktop Always Visible */}
@@ -246,36 +256,58 @@ const App: React.FC = () => {
         user={user!}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 z-20 lg:hidden"
+          style={{ backgroundColor: 'var(--overlay-bg)' }}
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <main className="flex-1 overflow-hidden relative flex flex-col h-full">
-        {/* Mobile Header (Simplified) */}
+        {/* Mobile Header */}
         {!hideMobileNav && (
-          <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-100 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-xs">
-                <i className="fas fa-microphone-lines"></i>
+          <div className="lg:hidden flex items-center justify-between p-4 border-b shrink-0" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-primary)' }}>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+              >
+                <i className="fas fa-bars text-sm"></i>
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center text-white text-xs">
+                  <i className="fas fa-microphone-lines"></i>
+                </div>
+                <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Lumina</span>
               </div>
-              <span className="font-bold text-gray-800">Lumina</span>
             </div>
-            <button
-              onClick={handleStartRecording}
-              className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"
-            >
-              <i className="fas fa-plus text-xs"></i>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
+              </button>
+              <button
+                onClick={handleStartRecording}
+                className="w-8 h-8 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center"
+              >
+                <i className="fas fa-plus text-xs"></i>
+              </button>
+            </div>
           </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden ${!hideMobileNav ? 'pb-20 lg:pb-0' : ''}`}>
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden scroll-smooth ${!hideMobileNav ? 'pb-20 lg:pb-0' : ''}`}>
           {currentView === AppView.DASHBOARD && (
             <Dashboard
               meetings={meetings}

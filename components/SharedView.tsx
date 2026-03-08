@@ -122,21 +122,22 @@ const SharedView: React.FC<SharedViewProps> = ({ onViewMeeting }) => {
   };
 
   return (
-    <div className="h-full bg-white flex flex-col">
-      <header className="p-8 border-b border-gray-100 flex flex-col gap-6">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--card-bg)' }}>
+      <header className="p-8 flex flex-col gap-6" style={{ borderBottom: '1px solid var(--border-primary)' }}>
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Shared with me</h1>
-            <p className="text-sm text-gray-500">View and collaborate on transcripts shared by your team.</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Shared with me</h1>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>View and collaborate on transcripts shared by your team.</p>
           </div>
           <div className="relative w-72">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-tertiary)' }}></i>
             <input
               type="text"
               placeholder="Search shared files..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500"
+              className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500"
+              style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
             />
           </div>
         </div>

@@ -110,26 +110,28 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
   };
 
   return (
-    <div className="flex h-full bg-white overflow-hidden relative">
+    <div className="flex h-full overflow-hidden relative" style={{ backgroundColor: 'var(--card-bg)' }}>
       {/* List Panel */}
       <div className={`
         ${showEditorMobile ? 'hidden md:flex' : 'flex'}
-        w-full md:w-80 border-r border-gray-100 flex-col h-full bg-gray-50/30 shrink-0
-      `}>
-        <div className="p-4 border-b border-gray-100 bg-white">
+        w-full md:w-80 flex-col h-full shrink-0
+      `} style={{ borderRight: '1px solid var(--border-primary)', backgroundColor: 'var(--bg-primary)' }}>
+        <div className="p-4" style={{ borderBottom: '1px solid var(--border-primary)', backgroundColor: 'var(--card-bg)' }}>
           <div className="relative mb-4">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-tertiary)' }}></i>
             <input 
               type="text" 
               placeholder="Search notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-100 border-none rounded-lg py-2 pl-9 pr-4 text-sm focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border-none rounded-lg py-2 pl-9 pr-4 text-sm focus:ring-2 focus:ring-blue-500/20"
+              style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
             />
           </div>
           <button 
             onClick={handleCreateNote}
-            className="w-full py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+            style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
           >
             <i className="fas fa-plus text-blue-500"></i>
             New Scratchpad
@@ -141,13 +143,13 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
           <FolderItem icon="fa-microphone" label="Transcripts" isActive={activeFolder === 'recordings'} onClick={() => setActiveFolder('recordings')} />
           <FolderItem icon="fa-pen-to-square" label="Scratchpad" isActive={activeFolder === 'scratchpad'} onClick={() => setActiveFolder('scratchpad')} />
           
-          <div className="mt-4 pt-4 border-t border-gray-100 px-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">Recent Files</span>
+          <div className="mt-4 pt-4 px-2" style={{ borderTop: '1px solid var(--border-primary)' }}>
+            <span className="text-[10px] font-bold uppercase tracking-widest px-2" style={{ color: 'var(--text-tertiary)' }}>Recent Files</span>
           </div>
           
           <div className="mt-2">
             {filteredItems.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-xs">No matching files found.</div>
+              <div className="p-8 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>No matching files found.</div>
             ) : (
               filteredItems.map(item => (
                 <div 
@@ -175,8 +177,8 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
       {/* Editor Panel */}
       <div className={`
         ${showEditorMobile ? 'flex' : 'hidden md:flex'}
-        flex-1 flex-col bg-white overflow-hidden h-full
-      `}>
+        flex-1 flex-col overflow-hidden h-full
+      `} style={{ backgroundColor: 'var(--card-bg)' }}>
         {selectedItem ? (
           <>
             <div className="p-4 md:p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
