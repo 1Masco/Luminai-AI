@@ -164,3 +164,94 @@ export const UpdateProfileInputSchema = z.object({
   plan: z.string().optional(),
   connected_apps: z.record(z.boolean()).optional(),
 });
+
+// =============================================
+// NEW FEATURE SCHEMAS
+// =============================================
+
+export const TranslateMeetingInputSchema = z.object({
+  meetingId: z.string().optional(),
+  languageCode: z.string().min(1, 'Language code is required').max(10),
+  languageName: z.string().min(1, 'Language name is required').max(100),
+  transcript: z.string().min(1, 'Transcript is required'),
+  summary: z.string().optional(),
+});
+
+export const CrossMeetingChatInputSchema = z.object({
+  question: z.string().min(1, 'Question is required').max(2000, 'Question too long'),
+  meetings: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    date: z.string(),
+    summary: z.string().optional(),
+    actionItems: z.array(z.string()).optional(),
+    transcript: z.string().optional(),
+  })).min(1, 'At least one meeting is required'),
+  conversationId: z.string().optional(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).optional(),
+});
+
+export const SaveVoiceMemoInputSchema = z.object({
+  title: z.string().max(255).optional(),
+  transcription: z.string().min(1, 'Transcription is required'),
+  duration: z.number().nonnegative().optional().default(0),
+  category: z.enum(['standup', 'idea', 'todo', 'general']).optional().default('general'),
+  linkedMeetingId: z.string().optional(),
+  tags: z.array(z.string()).optional().default([]),
+  isQuickCapture: z.boolean().optional().default(false),
+});
+
+export const UpdateVoiceMemoInputSchema = z.object({
+  title: z.string().max(255).optional(),
+  category: z.enum(['standup', 'idea', 'todo', 'general']).optional(),
+  tags: z.array(z.string()).optional(),
+  linkedMeetingId: z.string().optional(),
+});
+
+export const CategorizeMemoInputSchema = z.object({
+  transcription: z.string().min(1, 'Transcription is required'),
+  meetings: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+  })).optional().default([]),
+});
+
+export const MeetingPrepInputSchema = z.object({
+  meetingTitle: z.string().min(1, 'Meeting title is required').max(255),
+  relatedMeetings: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    date: z.string(),
+    summary: z.string().optional(),
+    actionItems: z.array(z.string()).optional(),
+    transcript: z.string().optional(),
+  })).optional().default([]),
+});
+
+export const CreateTemplateInputSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255),
+  description: z.string().max(1000).optional(),
+  category: z.string().max(50).optional().default('custom'),
+  promptTemplate: z.string().min(1, 'Prompt template is required').max(10000),
+  outputFormat: z.enum(['markdown', 'bullet_points', 'structured']).optional().default('markdown'),
+  isShared: z.boolean().optional().default(false),
+});
+
+export const UpdateTemplateInputSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional(),
+  category: z.string().max(50).optional(),
+  promptTemplate: z.string().min(1).max(10000).optional(),
+  outputFormat: z.enum(['markdown', 'bullet_points', 'structured']).optional(),
+  isShared: z.boolean().optional(),
+});
+
+export const GenerateWithTemplateInputSchema = z.object({
+  transcript: z.string().min(1, 'Transcript is required'),
+  templatePrompt: z.string().min(1, 'Template prompt is required'),
+  outputFormat: z.enum(['markdown', 'bullet_points', 'structured']).optional().default('markdown'),
+  templateId: z.string().optional(),
+});

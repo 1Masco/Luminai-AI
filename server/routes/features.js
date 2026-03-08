@@ -1,6 +1,18 @@
 import express from 'express';
 import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { validateRequest } from '../validation/middleware.js';
+import {
+  TranslateMeetingInputSchema,
+  CrossMeetingChatInputSchema,
+  SaveVoiceMemoInputSchema,
+  UpdateVoiceMemoInputSchema,
+  CategorizeMemoInputSchema,
+  MeetingPrepInputSchema,
+  CreateTemplateInputSchema,
+  UpdateTemplateInputSchema,
+  GenerateWithTemplateInputSchema,
+} from '../validation/schemas.js';
 import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
 import logger from '../logger/winston.config.js';
@@ -132,13 +144,10 @@ const aiRequest = async ({ messages, prompt, systemInstruction, temperature = 0.
 router.post(
   '/translate',
   authenticateToken,
+  validateRequest(TranslateMeetingInputSchema),
   asyncHandler(async (req, res) => {
     const { meetingId, languageCode, languageName, transcript, summary } = req.body;
     const userId = req.user.id;
-
-    if (!languageCode || !transcript) {
-      throw new AppError('Language code and transcript are required', 400, 'VALIDATION_ERROR');
-    }
 
     logger.info('Translation request', { meetingId, languageCode, requestId: req.id });
 
@@ -251,13 +260,10 @@ router.get(
 router.post(
   '/cross-meeting-chat',
   authenticateToken,
+  validateRequest(CrossMeetingChatInputSchema),
   asyncHandler(async (req, res) => {
     const { question, meetings, conversationId, history } = req.body;
     const userId = req.user.id;
-
-    if (!question || !meetings) {
-      throw new AppError('Question and meetings are required', 400, 'VALIDATION_ERROR');
-    }
 
     logger.info('Cross-meeting chat', { question: question.slice(0, 100), meetingCount: meetings.length, requestId: req.id });
 
@@ -435,6 +441,7 @@ router.get(
 router.post(
   '/voice-memos',
   authenticateToken,
+  validateRequest(SaveVoiceMemoInputSchema),
   asyncHandler(async (req, res) => {
     const { title, transcription, duration, category, linkedMeetingId, tags, isQuickCapture } = req.body;
     const userId = req.user.id;
@@ -474,6 +481,7 @@ router.post(
 router.put(
   '/voice-memos/:id',
   authenticateToken,
+  validateRequest(UpdateVoiceMemoInputSchema),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { title, category, tags, linkedMeetingId } = req.body;
@@ -530,12 +538,9 @@ router.delete(
 router.post(
   '/categorize-memo',
   authenticateToken,
+  validateRequest(CategorizeMemoInputSchema),
   asyncHandler(async (req, res) => {
     const { transcription, meetings } = req.body;
-
-    if (!transcription) {
-      throw new AppError('Transcription is required', 400, 'VALIDATION_ERROR');
-    }
 
     logger.info('Categorizing memo', { requestId: req.id });
 
@@ -583,13 +588,10 @@ Available meetings:\n${meetingsList || 'No meetings available'}`,
 router.post(
   '/meeting-prep',
   authenticateToken,
+  validateRequest(MeetingPrepInputSchema),
   asyncHandler(async (req, res) => {
     const { meetingTitle, relatedMeetings } = req.body;
     const userId = req.user.id;
-
-    if (!meetingTitle) {
-      throw new AppError('Meeting title is required', 400, 'VALIDATION_ERROR');
-    }
 
     logger.info('Generating meeting prep', { meetingTitle, relatedCount: relatedMeetings?.length, requestId: req.id });
 
@@ -743,13 +745,10 @@ router.get(
 router.post(
   '/templates',
   authenticateToken,
+  validateRequest(CreateTemplateInputSchema),
   asyncHandler(async (req, res) => {
     const { name, description, category, promptTemplate, outputFormat, isShared } = req.body;
     const userId = req.user.id;
-
-    if (!name || !promptTemplate) {
-      throw new AppError('Name and prompt template are required', 400, 'VALIDATION_ERROR');
-    }
 
     if (!isSupabaseConfigured()) {
       return res.json({ template: { id: `template-${Date.now()}`, ...req.body } });
@@ -786,6 +785,7 @@ router.post(
 router.put(
   '/templates/:id',
   authenticateToken,
+  validateRequest(UpdateTemplateInputSchema),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, description, category, promptTemplate, outputFormat, isShared } = req.body;
@@ -844,12 +844,9 @@ router.delete(
 router.post(
   '/generate-with-template',
   authenticateToken,
+  validateRequest(GenerateWithTemplateInputSchema),
   asyncHandler(async (req, res) => {
     const { transcript, templatePrompt, outputFormat } = req.body;
-
-    if (!transcript || !templatePrompt) {
-      throw new AppError('Transcript and template prompt are required', 400, 'VALIDATION_ERROR');
-    }
 
     logger.info('Generating with custom template', { requestId: req.id });
 

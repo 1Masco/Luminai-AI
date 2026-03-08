@@ -123,6 +123,16 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Stricter rate limit for AI-heavy endpoints (transcribe, translate, chat, summarise)
+const aiLimiter = rateLimit({
+  windowMs: parseInt(process.env.AI_RATE_LIMIT_WINDOW_MS) || 5 * 60 * 1000, // 5 minutes
+  max: parseInt(process.env.AI_RATE_LIMIT_MAX) || 20, // 20 AI requests per 5 min
+  message: 'Too many AI requests. Please wait before trying again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip, // per-user when authenticated
+});
+
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -152,11 +162,11 @@ if (!isProduction) {
 }
 
 // API routes
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', aiLimiter, aiRoutes);
 // Backward-compatible alias for older clients.
-app.use('/api/gemini', aiRoutes);
+app.use('/api/gemini', aiLimiter, aiRoutes);
 // New feature routes (translation, chat, memos, prep, templates)
-app.use('/api/ai', featuresRoutes);
+app.use('/api/ai', aiLimiter, featuresRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/meetings', meetingsRoutes);

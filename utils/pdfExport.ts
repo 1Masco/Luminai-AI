@@ -135,8 +135,9 @@ export const exportTranscriptAsPDF = (meeting: Meeting): void => {
   doc.setFontSize(10);
   doc.setTextColor(33, 33, 33);
 
-  if (meeting.transcript) {
-    const transcriptLines = doc.splitTextToSize(meeting.transcript, maxWidth);
+  if (meeting.transcript && meeting.transcript.length > 0) {
+    const fullTranscript = meeting.transcript.map(p => `${p.speaker}: ${p.text}`).join('\n');
+    const transcriptLines = doc.splitTextToSize(fullTranscript, maxWidth);
     doc.text(transcriptLines, margin, yPosition);
   } else {
     doc.text('No transcript available', margin, yPosition);

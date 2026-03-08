@@ -245,3 +245,20 @@ CREATE TRIGGER update_ai_templates_updated_at
 -- =============================================
 ALTER TABLE meetings
   ADD COLUMN IF NOT EXISTS detected_languages TEXT[] DEFAULT '{"en"}';
+
+-- =============================================
+-- 6. FUNCTION: Increment template usage count
+-- Called via supabase.rpc('increment_template_usage')
+-- =============================================
+CREATE OR REPLACE FUNCTION increment_template_usage(template_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE ai_templates
+  SET usage_count = usage_count + 1,
+      updated_at = TIMEZONE('utc', NOW())
+  WHERE id = template_id;
+END;
+$$;

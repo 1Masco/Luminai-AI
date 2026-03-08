@@ -73,11 +73,17 @@ export interface Meeting {
   actionItems?: string[];
   sentiment?: 'positive' | 'neutral' | 'negative';
   sharedBy?: string;
+  /** camelCase alias; prefer this in frontend code */
   analytics?: MeetingAnalytics;
+  /** snake_case variant returned by Supabase – mapped to analytics on load */
   meeting_analytics?: MeetingAnalytics;
+  /** camelCase alias; prefer this in frontend code */
   followUp?: FollowUpData;
+  /** snake_case variant returned by Supabase – mapped to followUp on load */
   follow_up_data?: FollowUpData;
+  /** camelCase alias; prefer this in frontend code */
   detectedLanguages?: string[];
+  /** snake_case variant returned by Supabase – mapped to detectedLanguages on load */
   detected_languages?: string[];
 }
 

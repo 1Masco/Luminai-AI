@@ -12,6 +12,7 @@ import {
 import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
 import logger from '../logger/winston.config.js';
+import { encryptTokens, decryptTokens } from '../utils/tokenEncryption.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -88,11 +89,12 @@ router.get(
       const oauth2Client = getGoogleOAuth2Client();
       const { tokens } = await oauth2Client.getToken(code);
 
-      // Store tokens in Supabase
+      // Encrypt and store tokens in Supabase
+      const encryptedTokens = encryptTokens(tokens);
       const { error } = await supabase
         .from('profiles')
         .update({
-          google_tokens: tokens,
+          google_tokens: { encrypted: encryptedTokens },
           connected_apps: supabase.raw(`
         jsonb_set(
           COALESCE(connected_apps, '{}'::jsonb),
@@ -108,7 +110,7 @@ router.get(
         return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?calendar=google&status=error`);
       }
 
-      logger.info('Google tokens stored', { userId, requestId: req.id });
+      logger.info('Google tokens stored (encrypted)', { userId, requestId: req.id });
 
       // Redirect to frontend success page
       res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?calendar=google&status=success`);
@@ -175,15 +177,17 @@ router.get(
 
       const response = await msalClient.acquireTokenByCode(tokenRequest);
 
-      // Store tokens in Supabase
+      // Encrypt and store tokens in Supabase
+      const outlookTokenData = {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken || null,
+        expiresOn: response.expiresOn
+      };
+      const encryptedOutlookTokens = encryptTokens(outlookTokenData);
       const { error } = await supabase
         .from('profiles')
         .update({
-          outlook_tokens: {
-            accessToken: response.accessToken,
-            refreshToken: response.refreshToken || null,
-            expiresOn: response.expiresOn
-          },
+          outlook_tokens: { encrypted: encryptedOutlookTokens },
           connected_apps: supabase.raw(`
         jsonb_set(
           COALESCE(connected_apps, '{}'::jsonb),
@@ -241,8 +245,12 @@ router.get(
         try {
           logger.debug('Fetching Google Calendar events', { userId, requestId: req.id });
 
+          const googleTokens = profile.google_tokens.encrypted
+            ? decryptTokens(profile.google_tokens.encrypted)
+            : profile.google_tokens;
+
           const oauth2Client = getGoogleOAuth2Client();
-          oauth2Client.setCredentials(profile.google_tokens);
+          oauth2Client.setCredentials(googleTokens);
 
           const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -278,9 +286,13 @@ router.get(
         try {
           logger.debug('Fetching Outlook events', { userId, requestId: req.id });
 
+          const outlookTokens = profile.outlook_tokens.encrypted
+            ? decryptTokens(profile.outlook_tokens.encrypted)
+            : profile.outlook_tokens;
+
           const client = Client.init({
             authProvider: (done) => {
-              done(null, profile.outlook_tokens.accessToken);
+              done(null, outlookTokens.accessToken);
             }
           });
 
