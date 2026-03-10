@@ -18,12 +18,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [authContext, setAuthContext] = useState<'user' | 'admin'>('user');
+  const [adminCode, setAdminCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const isAdminMode = authContext === 'admin';
+  const adminAccessCode = import.meta.env.VITE_ADMIN_ACCESS_CODE;
 
   const handleGoogleLogin = async () => {
     setError(null);
+
+    if (isAdminMode) {
+      setError('Admin login uses email and password.');
+      return;
+    }
 
     if (!isSupabaseConfigured()) {
       setIsLoading(true);
@@ -33,6 +42,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
           email: 'alex.rivera@gmail.com',
           avatar: 'https://i.pravatar.cc/150?u=alex',
           plan: 'free',
+          isAdmin: false,
           connectedApps: { google: true, zoom: false, teams: false, dropbox: false }
         });
       }, 1500);
@@ -64,7 +74,33 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
     setError(null);
     setMessage(null);
 
+    if (isAdminMode && mode === 'signup') {
+      setMode('login');
+      setError('Admin accounts cannot be created here.');
+      return;
+    }
+
     if (!isSupabaseConfigured()) {
+      if (isAdminMode) {
+        if (adminAccessCode && adminCode.trim() !== adminAccessCode) {
+          setError('Invalid admin access code.');
+          return;
+        }
+
+        setIsLoading(true);
+        setTimeout(() => {
+          onLogin({
+            name: name || 'Admin',
+            email: email || 'admin@lumina.ai',
+            avatar: `https://i.pravatar.cc/150?u=${email || 'admin'}`,
+            plan: 'team',
+            isAdmin: true,
+            connectedApps: { google: false, zoom: false, teams: false, dropbox: false }
+          });
+        }, 800);
+        return;
+      }
+
       setIsLoading(true);
       setTimeout(() => {
         onLogin({
@@ -72,6 +108,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
           email: email,
           avatar: `https://i.pravatar.cc/150?u=${email}`,
           plan: 'free',
+          isAdmin: false,
           connectedApps: { google: false, zoom: false, teams: false, dropbox: false }
         });
       }, 1500);
@@ -100,13 +137,41 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
           setMessage('Check your email for a confirmation link to complete sign up.');
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
 
         if (error) {
           setError(error.message);
+          return;
+        }
+
+        if (isAdminMode) {
+          const adminUserId = data.user?.id;
+          if (!adminUserId) {
+            await supabase.auth.signOut();
+            setError('Failed to verify admin access.');
+            return;
+          }
+
+          const { data: adminProfile, error: adminError } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', adminUserId)
+            .single();
+
+          if (adminError) {
+            await supabase.auth.signOut();
+            setError('Failed to verify admin access.');
+            return;
+          }
+
+          if (!adminProfile?.is_admin) {
+            await supabase.auth.signOut();
+            setError('This account is not an admin.');
+            return;
+          }
         }
       }
     } catch (err: any) {
@@ -121,6 +186,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
     setError(null);
     setMessage(null);
 
+    if (isAdminMode) {
+      setError('Admin login uses email and password.');
+      return;
+    }
+
     if (!isSupabaseConfigured()) {
       setIsLoading(true);
       setTimeout(() => {
@@ -130,6 +200,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
           phone,
           avatar: `https://i.pravatar.cc/150?u=${phone}`,
           plan: 'free',
+          isAdmin: false,
           connectedApps: { google: false, zoom: false, teams: false, dropbox: false }
         });
       }, 1500);
@@ -237,7 +308,35 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
             </div>
           )}
 
-          {mode !== 'otp_verify' && (
+          <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthContext('user');
+                setMode('login');
+                setAdminCode('');
+                setError(null);
+                setMessage(null);
+              }}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${!isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              User
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthContext('admin');
+                setMode('login');
+                setError(null);
+                setMessage(null);
+              }}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Admin
+            </button>
+          </div>
+
+          {mode !== 'otp_verify' && !isAdminMode && (
             <>
               {/* Tab Switcher */}
               <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-7">
@@ -281,6 +380,15 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
                 <div className="relative flex justify-center text-[9px] uppercase"><span className="glass px-5 text-gray-400 font-bold tracking-[0.2em]">Or email</span></div>
               </div>
             </>
+          )}
+
+          {mode !== 'otp_verify' && isAdminMode && (
+            <div className="mb-6 p-3.5 bg-blue-50/70 backdrop-blur border border-blue-100 rounded-2xl text-sm text-blue-700 flex items-start gap-2.5 animate-slide-down">
+              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <i className="fas fa-shield-halved text-[8px]"></i>
+              </div>
+              <span className="font-medium">Admin access only. Use your admin credentials to continue.</span>
+            </div>
           )}
 
           {/* Form */}
@@ -362,6 +470,23 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
                     className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                   />
                 </div>
+                {isAdminMode && !isSupabaseConfigured() && (
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Admin Access Code</label>
+                    <input
+                      type="password"
+                      value={adminCode}
+                      onChange={(e) => setAdminCode(e.target.value)}
+                      placeholder="Enter admin access code"
+                      className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
+                    />
+                    {!adminAccessCode && (
+                      <p className="text-[10px] mt-2 px-1" style={{ color: 'var(--text-tertiary)' }}>
+                        Optional in local mode. Set VITE_ADMIN_ACCESS_CODE to require a code.
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -372,7 +497,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
               className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-2xl font-bold text-sm hover:from-brand-700 hover:to-brand-600 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
             >
               {isLoading && <i className="fas fa-circle-notch fa-spin"></i>}
-              {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : mode === 'phone' ? 'Send Code' : 'Verify Code'}
+              {mode === 'login' ? (isAdminMode ? 'Admin Sign In' : 'Sign In') : mode === 'signup' ? 'Create Account' : mode === 'phone' ? 'Send Code' : 'Verify Code'}
             </button>
           </form>
         </div>

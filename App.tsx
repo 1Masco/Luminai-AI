@@ -42,6 +42,14 @@ const App: React.FC = () => {
   const [translationMeeting, setTranslationMeeting] = useState<Meeting | null>(null);
   const [isDark, setIsDark] = useState<boolean>(getInitialTheme);
 
+  const normalizeUserProfile = useCallback((profile: UserProfile): UserProfile => {
+    return {
+      ...profile,
+      isAdmin: Boolean(profile.isAdmin),
+      connectedApps: profile.connectedApps || { google: false, zoom: false, teams: false, dropbox: false }
+    };
+  }, []);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
@@ -81,8 +89,9 @@ const App: React.FC = () => {
       const savedAuth = localStorage.getItem('lumina_auth');
       const savedUser = localStorage.getItem('lumina_user');
       if (savedAuth === 'true' && savedUser) {
+        const parsed = JSON.parse(savedUser);
         setIsAuthenticated(true);
-        setUser(JSON.parse(savedUser));
+        setUser(normalizeUserProfile(parsed));
       }
       return;
     }
@@ -120,6 +129,7 @@ const App: React.FC = () => {
       phone: supabaseUser.phone || undefined,
       avatar: supabaseUser.user_metadata?.avatar_url || `https://i.pravatar.cc/150?u=${supabaseUser.email}`,
       plan: 'free',
+      isAdmin: false,
       connectedApps: { google: false, zoom: false, teams: false, dropbox: false }
     };
 
@@ -127,7 +137,7 @@ const App: React.FC = () => {
     try {
       const { data: dbProfile } = await supabase
         .from('profiles')
-        .select('name, avatar, plan, connected_apps')
+        .select('name, avatar, plan, connected_apps, is_admin')
         .eq('id', supabaseUser.id)
         .single();
 
@@ -137,6 +147,7 @@ const App: React.FC = () => {
           name: dbProfile.name || profile.name,
           avatar: dbProfile.avatar || profile.avatar,
           plan: dbProfile.plan || 'free',
+          isAdmin: Boolean(dbProfile.is_admin),
           connectedApps: dbProfile.connected_apps || profile.connectedApps
         };
       }
@@ -144,7 +155,7 @@ const App: React.FC = () => {
       console.warn('Could not fetch profile from database:', err);
     }
 
-    setUser(profile);
+    setUser(normalizeUserProfile(profile));
     setIsAuthenticated(true);
     localStorage.setItem('lumina_user', JSON.stringify(profile));
     localStorage.setItem('lumina_auth', 'true');
@@ -231,7 +242,7 @@ const App: React.FC = () => {
 
   const handleLogin = (userData: UserProfile) => {
     // For mock/fallback auth when Supabase is not configured
-    setUser(userData);
+    setUser(normalizeUserProfile(userData));
     setIsAuthenticated(true);
     localStorage.setItem('lumina_user', JSON.stringify(userData));
     localStorage.setItem('lumina_auth', 'true');
@@ -250,6 +261,10 @@ const App: React.FC = () => {
   };
 
   const navigateTo = (view: AppView) => {
+    if (view === AppView.ADMIN && !user?.isAdmin) {
+      setCurrentView(AppView.DASHBOARD);
+      return;
+    }
     setCurrentView(view);
     setIsSidebarOpen(false);
   }
@@ -426,14 +441,38 @@ const App: React.FC = () => {
           )}
 
           {currentView === AppView.ADMIN && (
-            <AdminPanel
-              meetings={meetings}
-              notes={notes}
-              user={user!}
-              onDeleteMeeting={handleDeleteMeeting}
-              onDeleteNote={handleDeleteNote}
-              onUpdateUser={handleUpdateUser}
-            />
+            user?.isAdmin ? (
+              <AdminPanel
+                meetings={meetings}
+                notes={notes}
+                user={user!}
+                onDeleteMeeting={handleDeleteMeeting}
+                onDeleteNote={handleDeleteNote}
+                onUpdateUser={handleUpdateUser}
+              />
+            ) : (
+              <div className="p-8">
+                <div
+                  className="max-w-lg mx-auto rounded-3xl p-8 text-center"
+                  style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
+                >
+                  <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                    <i className="fas fa-lock"></i>
+                  </div>
+                  <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Admin access required</h2>
+                  <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+                    This area is restricted to admin accounts. Please log in with an admin profile to continue.
+                  </p>
+                  <button
+                    onClick={() => navigateTo(AppView.DASHBOARD)}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                  >
+                    Back to Dashboard
+                  </button>
+                </div>
+              </div>
+            )
           )}
 
           {currentView === AppView.PROFILE && (

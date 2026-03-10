@@ -104,6 +104,7 @@ export interface UserProfile {
   phone?: string;
   avatar: string;
   plan: 'free' | 'pro' | 'team';
+  isAdmin?: boolean;
   connectedApps: {
     google: boolean;
     zoom: boolean;
