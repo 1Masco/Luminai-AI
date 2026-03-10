@@ -18,6 +18,7 @@ import VoiceMemosView from './components/VoiceMemosView';
 import MeetingPrepView from './components/MeetingPrepView';
 import AITemplatesView from './components/AITemplatesView';
 import TranslationView from './components/TranslationView';
+import AdminPanel from './components/AdminPanel';
 import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
 const getInitialTheme = (): boolean => {
@@ -422,6 +423,17 @@ const App: React.FC = () => {
                 navigateTo(AppView.DASHBOARD);
               }
             }} />
+          )}
+
+          {currentView === AppView.ADMIN && (
+            <AdminPanel
+              meetings={meetings}
+              notes={notes}
+              user={user!}
+              onDeleteMeeting={handleDeleteMeeting}
+              onDeleteNote={handleDeleteNote}
+              onUpdateUser={handleUpdateUser}
+            />
           )}
 
           {currentView === AppView.PROFILE && (

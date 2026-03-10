@@ -16,6 +16,7 @@ import calendarRoutes from './routes/calendar.js';
 import cloudRoutes from './routes/cloud.js';
 import sharingRoutes from './routes/sharing.js';
 import featuresRoutes from './routes/features.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
@@ -173,6 +174,7 @@ app.use('/api/meetings', meetingsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/cloud', cloudRoutes);
 app.use('/api/sharing', sharingRoutes);
+app.use('/api/admin', adminRoutes);
 
 if (isProduction) {
   app.use(express.static(path.join(__dirname, '../dist')));

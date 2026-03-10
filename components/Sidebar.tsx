@@ -21,7 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
       transition-transform duration-300 ease-in-out
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     `}
-    style={{ backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-primary)' }}
+      style={{ backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-primary)' }}
     >
       <div className="p-5 h-full flex flex-col">
         {/* Logo */}
@@ -109,13 +109,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onStartRecor
             onClick={() => onNavigate(AppView.NOTES)}
           />
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-secondary)' }}>
-            Collaboration
+            Administration
           </p>
           <NavItem
-            icon="fa-share-nodes"
-            label="Shared with me"
-            isActive={currentView === AppView.SHARED}
-            onClick={() => onNavigate(AppView.SHARED)}
+            icon="fa-shield-halved"
+            label="Control Room"
+            isActive={currentView === AppView.ADMIN}
+            onClick={() => onNavigate(AppView.ADMIN)}
           />
         </nav>
 

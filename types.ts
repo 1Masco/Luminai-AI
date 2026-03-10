@@ -263,5 +263,6 @@ export enum AppView {
   VOICE_MEMOS = 'voice_memos',
   MEETING_PREP = 'meeting_prep',
   AI_TEMPLATES = 'ai_templates',
-  TRANSLATION = 'translation'
+  TRANSLATION = 'translation',
+  ADMIN = 'admin'
 }
