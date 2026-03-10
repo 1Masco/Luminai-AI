@@ -3,7 +3,17 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Meeting, Note, UserProfile } from '../types';
 
 // ─── Types ─────────────────────────────────────────────
-type AdminTab = 'overview' | 'users' | 'meetings' | 'notes' | 'settings' | 'activity';
+type AdminTab =
+    | 'overview'
+    | 'users'
+    | 'meetings'
+    | 'notes'
+    | 'settings'
+    | 'activity'
+    | 'security'
+    | 'billing'
+    | 'system'
+    | 'integrations';
 
 interface AdminPanelProps {
     meetings: Meeting[];
@@ -16,14 +26,14 @@ interface AdminPanelProps {
 
 // ─── Mock Data ─────────────────────────────────────────
 const MOCK_USERS = [
-    { id: '1', name: 'Alice Johnson', email: 'alice@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=alice', plan: 'pro' as const, status: 'active' as const, meetingCount: 45, joinedDate: '2025-11-15' },
-    { id: '2', name: 'Bob Smith', email: 'bob@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=bob', plan: 'free' as const, status: 'active' as const, meetingCount: 12, joinedDate: '2025-12-01' },
-    { id: '3', name: 'Carol Williams', email: 'carol@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=carol', plan: 'team' as const, status: 'active' as const, meetingCount: 78, joinedDate: '2025-10-20' },
-    { id: '4', name: 'David Lee', email: 'david@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=david', plan: 'free' as const, status: 'suspended' as const, meetingCount: 3, joinedDate: '2026-01-05' },
-    { id: '5', name: 'Eva Martinez', email: 'eva@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=eva', plan: 'pro' as const, status: 'active' as const, meetingCount: 56, joinedDate: '2025-09-18' },
-    { id: '6', name: 'Frank Chen', email: 'frank@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=frank', plan: 'team' as const, status: 'active' as const, meetingCount: 92, joinedDate: '2025-08-22' },
-    { id: '7', name: 'Grace Kim', email: 'grace@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=grace', plan: 'free' as const, status: 'active' as const, meetingCount: 8, joinedDate: '2026-02-10' },
-    { id: '8', name: 'Henry Davis', email: 'henry@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=henry', plan: 'pro' as const, status: 'active' as const, meetingCount: 34, joinedDate: '2025-12-15' },
+    { id: '1', name: 'Alice Johnson', email: 'alice@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=alice', plan: 'pro' as const, status: 'active' as const, role: 'owner' as const, meetingCount: 45, joinedDate: '2025-11-15', lastActive: '5m ago' },
+    { id: '2', name: 'Bob Smith', email: 'bob@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=bob', plan: 'free' as const, status: 'active' as const, role: 'member' as const, meetingCount: 12, joinedDate: '2025-12-01', lastActive: '1h ago' },
+    { id: '3', name: 'Carol Williams', email: 'carol@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=carol', plan: 'team' as const, status: 'active' as const, role: 'admin' as const, meetingCount: 78, joinedDate: '2025-10-20', lastActive: '10m ago' },
+    { id: '4', name: 'David Lee', email: 'david@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=david', plan: 'free' as const, status: 'suspended' as const, role: 'member' as const, meetingCount: 3, joinedDate: '2026-01-05', lastActive: '14d ago' },
+    { id: '5', name: 'Eva Martinez', email: 'eva@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=eva', plan: 'pro' as const, status: 'active' as const, role: 'admin' as const, meetingCount: 56, joinedDate: '2025-09-18', lastActive: '30m ago' },
+    { id: '6', name: 'Frank Chen', email: 'frank@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=frank', plan: 'team' as const, status: 'active' as const, role: 'member' as const, meetingCount: 92, joinedDate: '2025-08-22', lastActive: '2h ago' },
+    { id: '7', name: 'Grace Kim', email: 'grace@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=grace', plan: 'free' as const, status: 'active' as const, role: 'support' as const, meetingCount: 8, joinedDate: '2026-02-10', lastActive: '20m ago' },
+    { id: '8', name: 'Henry Davis', email: 'henry@lumina.ai', avatar: 'https://i.pravatar.cc/150?u=henry', plan: 'pro' as const, status: 'active' as const, role: 'member' as const, meetingCount: 34, joinedDate: '2025-12-15', lastActive: '1d ago' },
 ];
 
 const MOCK_ACTIVITY = [
@@ -37,6 +47,54 @@ const MOCK_ACTIVITY = [
     { id: '8', type: 'template_created', icon: 'fa-wand-magic-sparkles', color: '#ec4899', user: 'Henry Davis', detail: 'Created AI template "Sales Follow-Up"', time: '7 hrs ago' },
     { id: '9', type: 'translation', icon: 'fa-language', color: '#14b8a6', user: 'Alice Johnson', detail: 'Translated meeting to Spanish', time: '10 hrs ago' },
     { id: '10', type: 'user_signup', icon: 'fa-user-plus', color: '#10b981', user: 'Ian Foster', detail: 'New user registered', time: '12 hrs ago' },
+];
+
+const MOCK_ALERTS = [
+    { id: '1', severity: 'critical', title: 'Elevated API errors', detail: '5xx rate exceeded 2% for 10 minutes', time: '12 min ago' },
+    { id: '2', severity: 'warning', title: 'Transcription queue delay', detail: 'Median wait time is 4 minutes', time: '32 min ago' },
+    { id: '3', severity: 'info', title: 'Deploy completed', detail: 'Version 1.12.0 rolled out to 100%', time: '2 hrs ago' },
+];
+
+const MOCK_INVOICES = [
+    { id: 'INV-2401', customer: 'Nimbus Ventures', amount: 2400, status: 'paid', date: '2026-02-22', plan: 'team' },
+    { id: 'INV-2402', customer: 'Atlas Health', amount: 1290, status: 'paid', date: '2026-02-24', plan: 'pro' },
+    { id: 'INV-2403', customer: 'Brightline Studio', amount: 890, status: 'open', date: '2026-02-28', plan: 'pro' },
+    { id: 'INV-2404', customer: 'Northwind Labs', amount: 3100, status: 'overdue', date: '2026-03-02', plan: 'team' },
+];
+
+const MOCK_SERVICES = [
+    { id: 'api', name: 'Public API', status: 'healthy', latencyMs: 142, uptime: '99.98%', incidents: 0 },
+    { id: 'worker', name: 'Transcription Workers', status: 'degraded', latencyMs: 420, uptime: '99.71%', incidents: 1 },
+    { id: 'storage', name: 'Storage Pipeline', status: 'healthy', latencyMs: 88, uptime: '99.99%', incidents: 0 },
+    { id: 'notifications', name: 'Notifications', status: 'healthy', latencyMs: 120, uptime: '99.95%', incidents: 0 },
+];
+
+const MOCK_JOBS = [
+    { id: 'j1', name: 'Transcript Cleanup', status: 'running', lastRun: '2 min ago', nextRun: 'in 4 min' },
+    { id: 'j2', name: 'Daily Usage Rollup', status: 'scheduled', lastRun: '4 hrs ago', nextRun: 'in 20 hrs' },
+    { id: 'j3', name: 'Billing Sync', status: 'failed', lastRun: '20 min ago', nextRun: 'retrying' },
+    { id: 'j4', name: 'Archive Exports', status: 'idle', lastRun: '1 day ago', nextRun: 'in 6 hrs' },
+];
+
+const MOCK_API_KEYS = [
+    { id: 'key_live_01', name: 'Core Platform', createdAt: '2025-11-12', lastUsed: '3 min ago', scopes: ['admin', 'billing', 'users'] },
+    { id: 'key_live_02', name: 'Data Pipeline', createdAt: '2025-12-03', lastUsed: '2 hrs ago', scopes: ['events', 'exports'] },
+    { id: 'key_live_03', name: 'Support Console', createdAt: '2026-01-08', lastUsed: '1 day ago', scopes: ['support', 'users'] },
+];
+
+const MOCK_WEBHOOKS = [
+    { id: 'wh_01', name: 'Slack Alerts', url: 'https://hooks.slack.com/xxx', status: 'active', lastDelivery: '3 min ago' },
+    { id: 'wh_02', name: 'Ops Pager', url: 'https://pager.example.com/xxx', status: 'active', lastDelivery: '12 min ago' },
+    { id: 'wh_03', name: 'BI Warehouse', url: 'https://bi.example.com/xxx', status: 'paused', lastDelivery: '2 days ago' },
+];
+
+const MOCK_INTEGRATIONS = [
+    { id: 'slack', name: 'Slack', description: 'Notify channels about meetings and notes', icon: 'fa-hashtag', color: '#4a154b', status: 'healthy', enabled: true },
+    { id: 'google', name: 'Google Calendar', description: 'Sync events and auto-join meetings', icon: 'fa-calendar-day', color: '#2563eb', status: 'healthy', enabled: true },
+    { id: 'zoom', name: 'Zoom', description: 'Import recordings and transcripts', icon: 'fa-video', color: '#2563eb', status: 'healthy', enabled: true },
+    { id: 'teams', name: 'Microsoft Teams', description: 'Pull meeting metadata and recordings', icon: 'fa-people-group', color: '#4f46e5', status: 'warning', enabled: false },
+    { id: 'salesforce', name: 'Salesforce', description: 'Attach insights to opportunities', icon: 'fa-cloud', color: '#0ea5e9', status: 'healthy', enabled: false },
+    { id: 'webhooks', name: 'Webhooks', description: 'Push events to your systems', icon: 'fa-link', color: '#0f766e', status: 'healthy', enabled: true },
 ];
 
 // ─── Helper Components ─────────────────────────────────
@@ -112,6 +170,22 @@ const PlanBadge: React.FC<{ plan: string }> = ({ plan }) => {
     );
 };
 
+const RoleBadge: React.FC<{ role?: string }> = ({ role }) => {
+    const colors: Record<string, { bg: string; text: string }> = {
+        owner: { bg: 'rgba(16,185,129,0.12)', text: '#10b981' },
+        admin: { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6' },
+        support: { bg: 'rgba(245,158,11,0.12)', text: '#f59e0b' },
+        member: { bg: 'rgba(148,163,184,0.16)', text: '#64748b' },
+    };
+    const key = role || 'member';
+    const c = colors[key] || colors.member;
+    return (
+        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: c.bg, color: c.text }}>
+            {key}
+        </span>
+    );
+};
+
 const StatusDot: React.FC<{ status: string }> = ({ status }) => (
     <div className="flex items-center gap-1.5">
         <div className={`w-2 h-2 rounded-full ${status === 'active' ? 'bg-emerald-500' : 'bg-red-400'}`}></div>
@@ -136,6 +210,31 @@ const SentimentBadge: React.FC<{ sentiment?: string }> = ({ sentiment }) => {
 };
 
 // ─── Settings Feature Flag ─────────────────────────────
+const StatusPill: React.FC<{ status: string }> = ({ status }) => {
+    const map: Record<string, { bg: string; text: string }> = {
+        healthy: { bg: 'rgba(16,185,129,0.12)', text: '#10b981' },
+        degraded: { bg: 'rgba(245,158,11,0.12)', text: '#f59e0b' },
+        warning: { bg: 'rgba(245,158,11,0.12)', text: '#f59e0b' },
+        info: { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6' },
+        critical: { bg: 'rgba(239,68,68,0.12)', text: '#ef4444' },
+        active: { bg: 'rgba(16,185,129,0.12)', text: '#10b981' },
+        paused: { bg: 'rgba(148,163,184,0.16)', text: '#64748b' },
+        paid: { bg: 'rgba(16,185,129,0.12)', text: '#10b981' },
+        open: { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6' },
+        overdue: { bg: 'rgba(239,68,68,0.12)', text: '#ef4444' },
+        running: { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6' },
+        scheduled: { bg: 'rgba(148,163,184,0.16)', text: '#64748b' },
+        failed: { bg: 'rgba(239,68,68,0.12)', text: '#ef4444' },
+        idle: { bg: 'rgba(148,163,184,0.16)', text: '#64748b' },
+    };
+    const c = map[status] || { bg: 'rgba(148,163,184,0.16)', text: '#64748b' };
+    return (
+        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: c.bg, color: c.text }}>
+            {status}
+        </span>
+    );
+};
+
 const ToggleSwitch: React.FC<{ enabled: boolean; onToggle: () => void }> = ({ enabled, onToggle }) => (
     <button
         onClick={onToggle}
@@ -153,10 +252,32 @@ const ToggleSwitch: React.FC<{ enabled: boolean; onToggle: () => void }> = ({ en
 const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDeleteMeeting, onDeleteNote, onUpdateUser }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('overview');
     const [userSearch, setUserSearch] = useState('');
+    const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+    const [userPlanFilter, setUserPlanFilter] = useState<'all' | 'free' | 'pro' | 'team'>('all');
+    const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'owner' | 'admin' | 'support' | 'member'>('all');
     const [meetingSearch, setMeetingSearch] = useState('');
     const [noteSearch, setNoteSearch] = useState('');
     const [confirmDelete, setConfirmDelete] = useState<{ type: 'meeting' | 'note'; id: string } | null>(null);
     const [toastMessage, setToastMessage] = useState('');
+    const [announcementMessage, setAnnouncementMessage] = useState('');
+
+    const [securitySettings, setSecuritySettings] = useState({
+        mfaRequired: true,
+        ssoEnabled: false,
+        ipAllowlist: false,
+        allowMagicLinks: true,
+        auditRetentionDays: 90,
+        deviceTrustDays: 30,
+    });
+
+    const [billingSettings, setBillingSettings] = useState({
+        trialDays: 14,
+        allowCoupons: true,
+        autoInvoices: true,
+        proration: true,
+    });
+
+    const [integrations, setIntegrations] = useState(MOCK_INTEGRATIONS);
 
     // Settings state
     const [settings, setSettings] = useState({
@@ -198,10 +319,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
 
     // Filtered users
     const filteredUsers = useMemo(() => {
-        if (!userSearch.trim()) return MOCK_USERS;
-        const q = userSearch.toLowerCase();
-        return MOCK_USERS.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-    }, [userSearch]);
+        const q = userSearch.trim().toLowerCase();
+        return MOCK_USERS.filter(u => {
+            const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+            const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
+            const matchesPlan = userPlanFilter === 'all' || u.plan === userPlanFilter;
+            const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+            return matchesSearch && matchesStatus && matchesPlan && matchesRole;
+        });
+    }, [userSearch, userStatusFilter, userPlanFilter, userRoleFilter]);
 
     // Filtered meetings
     const filteredMeetings = useMemo(() => {
@@ -234,6 +360,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
         { key: 'users', icon: 'fa-users-gear', label: 'Users' },
         { key: 'meetings', icon: 'fa-video', label: 'Meetings' },
         { key: 'notes', icon: 'fa-sticky-note', label: 'Notes' },
+        { key: 'security', icon: 'fa-shield-halved', label: 'Security' },
+        { key: 'billing', icon: 'fa-credit-card', label: 'Billing' },
+        { key: 'system', icon: 'fa-server', label: 'System' },
+        { key: 'integrations', icon: 'fa-plug', label: 'Integrations' },
         { key: 'settings', icon: 'fa-sliders', label: 'Settings' },
         { key: 'activity', icon: 'fa-clock-rotate-left', label: 'Activity' },
     ];
@@ -309,6 +439,92 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                 </div>
             </div>
 
+            {/* Operational Controls */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                        <i className="fas fa-wand-magic-sparkles mr-2 text-indigo-500"></i>Quick Actions
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => triggerToast('Export started - you will receive a download link')}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold"
+                            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                        >
+                            Export Data
+                        </button>
+                        <button
+                            onClick={() => triggerToast('Queued background reindex')}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold"
+                            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                        >
+                            Reindex Search
+                        </button>
+                        <button
+                            onClick={() => triggerToast('Rotated service API keys')}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold"
+                            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                        >
+                            Rotate Keys
+                        </button>
+                        <button
+                            onClick={() => triggerToast('Forced logout issued to all sessions')}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold"
+                            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                        >
+                            Force Logout All
+                        </button>
+                    </div>
+                    <div className="mt-5">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.15em] block mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                            Announcement
+                        </label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={announcementMessage}
+                                onChange={(e) => setAnnouncementMessage(e.target.value)}
+                                placeholder="Broadcast an update to all users..."
+                                className="flex-1 px-3 py-2 rounded-xl text-sm"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <button
+                                onClick={() => {
+                                    if (!announcementMessage.trim()) return;
+                                    triggerToast('Announcement sent');
+                                    setAnnouncementMessage('');
+                                }}
+                                disabled={!announcementMessage.trim()}
+                                className="px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                                style={{ backgroundColor: 'var(--text-primary)', color: 'var(--bg-primary)' }}
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                        <i className="fas fa-triangle-exclamation mr-2 text-red-500"></i>Active Alerts
+                    </h3>
+                    <div className="space-y-3">
+                        {MOCK_ALERTS.map(alert => (
+                            <div key={alert.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div className="mt-0.5">
+                                    <StatusPill status={alert.severity} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.title}</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{alert.detail}</p>
+                                </div>
+                                <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{alert.time}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Recent Activity Preview */}
             <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
                 <div className="flex items-center justify-between mb-4">
@@ -344,8 +560,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
     const renderUsers = () => (
         <div className="space-y-4 animate-fade-in">
             {/* Search */}
-            <div className="flex items-center gap-3">
-                <div className="flex-1 relative">
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex-1 relative min-w-[220px]">
                     <i className="fas fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-tertiary)' }}></i>
                     <input
                         type="text"
@@ -356,6 +572,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                         style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
                     />
                 </div>
+                <select
+                    value={userStatusFilter}
+                    onChange={(e) => setUserStatusFilter(e.target.value as any)}
+                    className="px-3 py-3 rounded-xl text-xs font-semibold"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                </select>
+                <select
+                    value={userPlanFilter}
+                    onChange={(e) => setUserPlanFilter(e.target.value as any)}
+                    className="px-3 py-3 rounded-xl text-xs font-semibold"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                >
+                    <option value="all">All Plans</option>
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                    <option value="team">Team</option>
+                </select>
+                <select
+                    value={userRoleFilter}
+                    onChange={(e) => setUserRoleFilter(e.target.value as any)}
+                    className="px-3 py-3 rounded-xl text-xs font-semibold"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                >
+                    <option value="all">All Roles</option>
+                    <option value="owner">Owner</option>
+                    <option value="admin">Admin</option>
+                    <option value="support">Support</option>
+                    <option value="member">Member</option>
+                </select>
                 <div className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
                     {filteredUsers.length} users
                 </div>
@@ -379,6 +628,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                             <div className="flex items-center gap-2">
                                 <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{u.name}</p>
                                 <PlanBadge plan={u.plan} />
+                                <RoleBadge role={u.role} />
                             </div>
                             <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{u.email}</p>
                             <div className="flex items-center gap-3 mt-1">
@@ -388,6 +638,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                                 <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
                                     <i className="fas fa-calendar mr-1 text-[10px]"></i>Joined {formatDate(u.joinedDate)}
                                 </span>
+                                <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                                    <i className="fas fa-clock mr-1 text-[10px]"></i>Active {u.lastActive}
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -396,6 +649,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                                 onClick={() => triggerToast(`Edit ${u.name} — coming soon`)}
                             >
                                 <i className="fas fa-pen text-[10px]"></i>
+                            </button>
+                            <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Reset password"
+                                style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                onClick={() => triggerToast(`Password reset sent to ${u.email}`)}
+                            >
+                                <i className="fas fa-key text-[10px]"></i>
+                            </button>
+                            <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Force logout"
+                                style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                                onClick={() => triggerToast(`Forced logout for ${u.name}`)}
+                            >
+                                <i className="fas fa-right-from-bracket text-[10px]"></i>
                             </button>
                             <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title={u.status === 'active' ? 'Suspend user' : 'Activate user'}
                                 style={{ backgroundColor: u.status === 'active' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', color: u.status === 'active' ? '#ef4444' : '#10b981' }}
@@ -553,6 +818,477 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                         </div>
                     ))
                 )}
+            </div>
+        </div>
+    );
+
+    const renderSecurity = () => {
+        const adminCount = MOCK_USERS.filter(u => u.role === 'admin' || u.role === 'owner').length;
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard icon="fa-shield-halved" label="Admin Accounts" value={adminCount} gradient="linear-gradient(135deg, #10b981, #059669)" />
+                    <StatCard icon="fa-lock" label="MFA Coverage" value="68%" trend="+6%" trendUp gradient="linear-gradient(135deg, #6366f1, #4f46e5)" />
+                    <StatCard icon="fa-triangle-exclamation" label="Failed Logins (24h)" value="14" trend="-3%" gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
+                    <StatCard icon="fa-key" label="Active API Keys" value={MOCK_API_KEYS.length} gradient="linear-gradient(135deg, #0ea5e9, #2563eb)" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <h3 className="text-sm font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <i className="fas fa-shield-halved text-emerald-500"></i>Access Controls
+                        </h3>
+                        <div className="space-y-4">
+                            {[
+                                { key: 'mfaRequired', label: 'Require MFA', desc: 'All users must enroll in multi-factor authentication', icon: 'fa-key' },
+                                { key: 'ssoEnabled', label: 'SSO Enforcement', desc: 'Restrict login to single sign-on providers', icon: 'fa-right-to-bracket' },
+                                { key: 'ipAllowlist', label: 'IP Allowlist', desc: 'Limit admin access to approved IP ranges', icon: 'fa-shield' },
+                                { key: 'allowMagicLinks', label: 'Allow Magic Links', desc: 'Enable passwordless sign-in links', icon: 'fa-link' },
+                            ].map(item => (
+                                <div key={item.key} className="flex items-center justify-between p-3 rounded-xl transition-all" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }}>
+                                            <i className={`fas ${item.icon} text-xs`}></i>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
+                                            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{item.desc}</p>
+                                        </div>
+                                    </div>
+                                    <ToggleSwitch
+                                        enabled={(securitySettings as any)[item.key]}
+                                        onToggle={() => {
+                                            setSecuritySettings(prev => ({ ...prev, [item.key]: !(prev as any)[item.key] }));
+                                            triggerToast(`${item.label} ${(securitySettings as any)[item.key] ? 'disabled' : 'enabled'}`);
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <h3 className="text-sm font-bold mb-5 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <i className="fas fa-clock text-indigo-500"></i>Sessions & Retention
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Session Timeout (min)</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Auto sign out inactive sessions</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    value={settings.sessionTimeoutMins}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, sessionTimeoutMins: parseInt(e.target.value) || 0 }))}
+                                    className="w-24 text-right text-sm font-bold px-3 py-2 rounded-lg"
+                                    style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Audit Retention (days)</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>How long audit logs are stored</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    value={securitySettings.auditRetentionDays}
+                                    onChange={(e) => setSecuritySettings(prev => ({ ...prev, auditRetentionDays: parseInt(e.target.value) || 0 }))}
+                                    className="w-24 text-right text-sm font-bold px-3 py-2 rounded-lg"
+                                    style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Device Trust (days)</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Remember trusted devices</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    value={securitySettings.deviceTrustDays}
+                                    onChange={(e) => setSecuritySettings(prev => ({ ...prev, deviceTrustDays: parseInt(e.target.value) || 0 }))}
+                                    className="w-24 text-right text-sm font-bold px-3 py-2 rounded-lg"
+                                    style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>API Keys</h3>
+                        <button
+                            onClick={() => triggerToast('Created new API key')}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                            style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                        >
+                            New Key
+                        </button>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                        {MOCK_API_KEYS.map(key => (
+                            <div key={key.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 items-center">
+                                <div className="col-span-4">
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{key.name}</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{key.id}</p>
+                                </div>
+                                <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{key.scopes.join(', ')}</div>
+                                <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>Last used {key.lastUsed}</div>
+                                <div className="col-span-2 flex justify-end gap-2">
+                                    <button
+                                        onClick={() => triggerToast(`Rotated ${key.name}`)}
+                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                        style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                    >
+                                        Rotate
+                                    </button>
+                                    <button
+                                        onClick={() => triggerToast(`Revoked ${key.name}`)}
+                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                                    >
+                                        Revoke
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderBilling = () => {
+        const mrr = 24890;
+        const arr = mrr * 12;
+        const churn = 3.1;
+        const arpa = 42;
+        const planRevenue = [
+            { label: 'Free', amount: 1200, color: '#64748b' },
+            { label: 'Pro', amount: 10890, color: '#6366f1' },
+            { label: 'Team', amount: 12800, color: '#8b5cf6' },
+        ];
+        const total = planRevenue.reduce((sum, p) => sum + p.amount, 0);
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard icon="fa-chart-line" label="MRR" value={`$${mrr.toLocaleString()}`} trend="+9%" trendUp gradient="linear-gradient(135deg, #10b981, #059669)" />
+                    <StatCard icon="fa-dollar-sign" label="ARR" value={`$${arr.toLocaleString()}`} trend="+12%" trendUp gradient="linear-gradient(135deg, #6366f1, #4f46e5)" />
+                    <StatCard icon="fa-arrow-down" label="Churn" value={`${churn}%`} trend="-0.4%" trendUp gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
+                    <StatCard icon="fa-user" label="ARPA" value={`$${arpa}`} trend="+3%" trendUp gradient="linear-gradient(135deg, #0ea5e9, #2563eb)" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                            <i className="fas fa-chart-pie mr-2 text-indigo-500"></i>Revenue by Plan
+                        </h3>
+                        <div className="space-y-4">
+                            {planRevenue.map(plan => (
+                                <div key={plan.label}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{plan.label}</span>
+                                        <span className="text-xs font-bold" style={{ color: plan.color }}>${plan.amount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${Math.round((plan.amount / total) * 100)}%`, backgroundColor: plan.color }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <i className="fas fa-sliders text-amber-500"></i>Billing Controls
+                        </h3>
+                        <div className="space-y-4">
+                            {[
+                                { key: 'allowCoupons', label: 'Allow Coupons', desc: 'Enable coupon codes for promotions', icon: 'fa-ticket' },
+                                { key: 'autoInvoices', label: 'Auto Invoicing', desc: 'Generate invoices automatically', icon: 'fa-file-invoice' },
+                                { key: 'proration', label: 'Proration', desc: 'Prorate plan changes mid-cycle', icon: 'fa-scale-balanced' },
+                            ].map(item => (
+                                <div key={item.key} className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }}>
+                                            <i className={`fas ${item.icon} text-xs`}></i>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
+                                            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{item.desc}</p>
+                                        </div>
+                                    </div>
+                                    <ToggleSwitch
+                                        enabled={(billingSettings as any)[item.key]}
+                                        onToggle={() => {
+                                            setBillingSettings(prev => ({ ...prev, [item.key]: !(prev as any)[item.key] }));
+                                            triggerToast(`${item.label} ${(billingSettings as any)[item.key] ? 'disabled' : 'enabled'}`);
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                            <div className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Trial Length (days)</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Default trial duration</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    value={billingSettings.trialDays}
+                                    onChange={(e) => setBillingSettings(prev => ({ ...prev, trialDays: parseInt(e.target.value) || 0 }))}
+                                    className="w-24 text-right text-sm font-bold px-3 py-2 rounded-lg"
+                                    style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <div className="px-5 py-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Recent Invoices</h3>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                        {MOCK_INVOICES.map(inv => (
+                            <div key={inv.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 items-center">
+                                <div className="col-span-3">
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{inv.id}</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{formatDate(inv.date)}</p>
+                                </div>
+                                <div className="col-span-4 text-xs" style={{ color: 'var(--text-secondary)' }}>{inv.customer}</div>
+                                <div className="col-span-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>${inv.amount.toLocaleString()}</div>
+                                <div className="col-span-2"><StatusPill status={inv.status} /></div>
+                                <div className="col-span-1 text-right text-[10px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>{inv.plan}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderSystem = () => (
+        <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {MOCK_SERVICES.map(service => (
+                    <div key={service.id} className="rounded-2xl p-5" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{service.name}</p>
+                            <StatusPill status={service.status} />
+                        </div>
+                        <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                            <span>Latency</span>
+                            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{service.latencyMs}ms</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                            <span>Uptime</span>
+                            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{service.uptime}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                            <span>Incidents</span>
+                            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{service.incidents}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                    <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Background Jobs</h3>
+                    <button
+                        onClick={() => triggerToast('Queued job refresh')}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                    >
+                        Refresh
+                    </button>
+                </div>
+                <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                    {MOCK_JOBS.map(job => (
+                        <div key={job.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 items-center">
+                            <div className="col-span-4">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{job.name}</p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Last run {job.lastRun}</p>
+                            </div>
+                            <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>Next: {job.nextRun}</div>
+                            <div className="col-span-3"><StatusPill status={job.status} /></div>
+                            <div className="col-span-2 flex justify-end gap-2">
+                                <button
+                                    onClick={() => triggerToast(`Triggered ${job.name}`)}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                    style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                >
+                                    Run
+                                </button>
+                                {job.status === 'failed' && (
+                                    <button
+                                        onClick={() => triggerToast(`Retrying ${job.name}`)}
+                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                                    >
+                                        Retry
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                        <i className="fas fa-code-branch mr-2 text-indigo-500"></i>Release Info
+                    </h3>
+                    <div className="space-y-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="flex items-center justify-between">
+                            <span>Current Version</span>
+                            <span className="font-semibold">v1.12.0</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span>Last Deploy</span>
+                            <span className="font-semibold">2 hrs ago</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span>Region</span>
+                            <span className="font-semibold">us-east-1</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span>Uptime</span>
+                            <span className="font-semibold">41 days</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                    <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                        <i className="fas fa-bell mr-2 text-amber-500"></i>Incident Feed
+                    </h3>
+                    <div className="space-y-3">
+                        {MOCK_ALERTS.map(alert => (
+                            <div key={alert.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <StatusPill status={alert.severity} />
+                                <div className="flex-1">
+                                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.title}</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{alert.detail}</p>
+                                </div>
+                                <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{alert.time}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderIntegrations = () => (
+        <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {integrations.map(integration => (
+                    <div key={integration.id} className="rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                                <div
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm"
+                                    style={{ backgroundColor: integration.color }}
+                                >
+                                    <i className={`fas ${integration.icon}`}></i>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{integration.name}</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{integration.description}</p>
+                                </div>
+                            </div>
+                            <StatusPill status={integration.status} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                {integration.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <ToggleSwitch
+                                enabled={integration.enabled}
+                                onToggle={() => {
+                                    setIntegrations(prev => prev.map(item => {
+                                        if (item.id !== integration.id) return item;
+                                        return { ...item, enabled: !item.enabled };
+                                    }));
+                                    triggerToast(`${integration.name} ${integration.enabled ? 'disabled' : 'enabled'}`);
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                    <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Webhooks</h3>
+                    <button
+                        onClick={() => triggerToast('Webhook created')}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                    >
+                        Add Webhook
+                    </button>
+                </div>
+                <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                    {MOCK_WEBHOOKS.map(wh => (
+                        <div key={wh.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 items-center">
+                            <div className="col-span-4">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{wh.name}</p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{wh.url}</p>
+                            </div>
+                            <div className="col-span-3"><StatusPill status={wh.status} /></div>
+                            <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>Last delivery {wh.lastDelivery}</div>
+                            <div className="col-span-2 flex justify-end gap-2">
+                                <button
+                                    onClick={() => triggerToast(`Test sent to ${wh.name}`)}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                    style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                >
+                                    Test
+                                </button>
+                                <button
+                                    onClick={() => triggerToast(`${wh.status === 'active' ? 'Paused' : 'Activated'} ${wh.name}`)}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                    style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                                >
+                                    {wh.status === 'active' ? 'Pause' : 'Activate'}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
+                <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                    <i className="fas fa-database mr-2 text-emerald-500"></i>Data Exports
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => triggerToast('User export started')}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold"
+                        style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                    >
+                        Export Users
+                    </button>
+                    <button
+                        onClick={() => triggerToast('Meeting export started')}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold"
+                        style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                    >
+                        Export Meetings
+                    </button>
+                    <button
+                        onClick={() => triggerToast('Audit export started')}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold"
+                        style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                    >
+                        Export Audit Log
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -754,6 +1490,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'meetings' && renderMeetings()}
             {activeTab === 'notes' && renderNotes()}
+            {activeTab === 'security' && renderSecurity()}
+            {activeTab === 'billing' && renderBilling()}
+            {activeTab === 'system' && renderSystem()}
+            {activeTab === 'integrations' && renderIntegrations()}
             {activeTab === 'settings' && renderSettings()}
             {activeTab === 'activity' && renderActivity()}
 
