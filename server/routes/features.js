@@ -16,6 +16,7 @@ import {
 import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
 import logger from '../logger/winston.config.js';
+import { getRuntimeValue } from '../services/adminSettings.js';
 
 const router = express.Router();
 
@@ -40,13 +41,13 @@ const parseJsonString = (text, fallback = {}) => {
 };
 
 const getOpenAIApiKey = () => {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = getRuntimeValue('OPENAI_API_KEY');
   if (!apiKey) throw new AppError('OpenAI API not configured', 503, 'OPENAI_NOT_CONFIGURED');
   return apiKey;
 };
 
 const getGeminiApiKey = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getRuntimeValue('GEMINI_API_KEY');
   return typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : null;
 };
 
@@ -113,7 +114,7 @@ const requestGemini = async ({ prompt, systemInstruction, temperature = 0.3 }) =
 const aiRequest = async ({ messages, prompt, systemInstruction, temperature = 0.3, requestId }) => {
   // Try OpenAI
   try {
-    if (process.env.OPENAI_API_KEY) {
+    if (getRuntimeValue('OPENAI_API_KEY')) {
       return await requestOpenAI({ messages, temperature });
     }
   } catch (err) {

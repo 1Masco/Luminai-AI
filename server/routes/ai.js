@@ -14,6 +14,7 @@ import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
 import logger from '../logger/winston.config.js';
 import { extractTextFromPDF } from '../utils/pdfParser.js';
+import { getRuntimeValue } from '../services/adminSettings.js';
 
 const router = express.Router();
 const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || 'https://api.openai.com/v1';
@@ -42,8 +43,8 @@ const providerCooldownState = {
 };
 
 const isProviderConfigured = (provider) => {
-  if (provider === 'deepgram') return Boolean(process.env.DEEPGRAM_API_KEY);
-  if (provider === 'openai') return Boolean(process.env.OPENAI_API_KEY);
+  if (provider === 'deepgram') return Boolean(getRuntimeValue('DEEPGRAM_API_KEY'));
+  if (provider === 'openai') return Boolean(getRuntimeValue('OPENAI_API_KEY'));
   if (provider === 'gemini') return Boolean(getGeminiApiKey());
   return false;
 };
@@ -89,7 +90,7 @@ const getProviderOrder = () => {
  * @throws {AppError} If OPENAI_API_KEY is not configured
  */
 const getOpenAIApiKey = () => {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = getRuntimeValue('OPENAI_API_KEY');
   if (!apiKey) {
     throw new AppError(
       'OpenAI API not configured',
@@ -161,7 +162,7 @@ const requestOpenAI = async ({ path, method = 'POST', body, headers = {} }) => {
 
     if (response.status === 401 || response.status === 403) {
       throw new AppError(
-        'OpenAI API key is invalid or unauthorized. Update OPENAI_API_KEY in server/.env.',
+        'OpenAI API key is invalid or unauthorized. Update it in the Admin Dashboard or server/.env.',
         401,
         'OPENAI_AUTH_ERROR'
       );
@@ -186,7 +187,7 @@ const requestOpenAI = async ({ path, method = 'POST', body, headers = {} }) => {
 };
 
 const getGeminiApiKey = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getRuntimeValue('GEMINI_API_KEY');
   return typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : null;
 };
 
@@ -359,7 +360,7 @@ const transcribeWithGemini = async ({ audioData, mimeType, fileName }) => {
  * Uses the Deepgram REST API directly (no SDK required)
  */
 const transcribeWithDeepgram = async ({ audioBuffer, mimeType, fileName, language = 'en' }) => {
-  const apiKey = process.env.DEEPGRAM_API_KEY;
+  const apiKey = getRuntimeValue('DEEPGRAM_API_KEY');
   if (!apiKey) {
     throw new AppError('Deepgram API not configured', 503, 'DEEPGRAM_NOT_CONFIGURED');
   }
@@ -392,7 +393,7 @@ const transcribeWithDeepgram = async ({ audioBuffer, mimeType, fileName, languag
   if (!response.ok) {
     const errMsg = data?.err_msg || data?.message || `Deepgram request failed with status ${response.status}`;
     if (response.status === 401 || response.status === 403) {
-      throw new AppError('Deepgram API key is invalid or unauthorized. Update DEEPGRAM_API_KEY in server/.env.', 401, 'DEEPGRAM_AUTH_ERROR');
+      throw new AppError('Deepgram API key is invalid or unauthorized. Update it in the Admin Dashboard or server/.env.', 401, 'DEEPGRAM_AUTH_ERROR');
     }
     if (response.status === 402) {
       throw new AppError('Deepgram quota exceeded. Falling back to next provider.', 429, 'DEEPGRAM_RATE_LIMITED');
@@ -485,7 +486,7 @@ const runWithProviderSelection = async ({
   const providerOrder = getProviderOrder();
   if (providerOrder.length === 0) {
     throw new AppError(
-      'AI providers are not configured. Set DEEPGRAM_API_KEY, OPENAI_API_KEY, and/or GEMINI_API_KEY in server/.env.',
+      'AI providers are not configured. Set keys in the Admin Dashboard or server/.env.',
       503,
       'AI_NOT_CONFIGURED'
     );
@@ -779,7 +780,7 @@ router.post(
 
         // ── GPT speaker diarization inference ──
         // Ask GPT to infer speaker names/labels from context
-        if (transcript.length > 1 && process.env.OPENAI_API_KEY) {
+        if (transcript.length > 1 && getRuntimeValue('OPENAI_API_KEY')) {
           try {
             const numberedLines = transcript.map((t, i) => `${i + 1}. ${t.text}`).join('\n');
             const diarizationPrompt = [
@@ -860,7 +861,7 @@ router.post(
     } catch (error) {
       if (isProviderUnavailableError(error)) {
         throw new AppError(
-          'AI transcription is unavailable. Please set DEEPGRAM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in server/.env.',
+          'AI transcription is unavailable. Please set provider keys in the Admin Dashboard or server/.env.',
           503,
           'AI_TRANSCRIPTION_UNAVAILABLE'
         );

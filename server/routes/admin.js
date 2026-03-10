@@ -1,10 +1,18 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import requireAdmin from '../middleware/admin.js';
+import {
+    listManagedKeys,
+    getManagedKeyById,
+    upsertAdminSetting,
+    recordAdminAction,
+} from '../services/adminSettings.js';
 
 dotenv.config();
 
 const router = express.Router();
+router.use(requireAdmin);
 
 // Helper: get Supabase admin client (service role key bypasses RLS)
 function getAdminClient() {
@@ -13,6 +21,51 @@ function getAdminClient() {
     if (!url || !serviceKey) return null;
     return createClient(url, serviceKey);
 }
+
+// â”€â”€â”€ GET /api/admin/keys â”€â”€â”€
+router.get('/keys', async (req, res) => {
+    try {
+        const keys = await listManagedKeys();
+        res.json({ keys });
+    } catch (err) {
+        console.error('Admin keys error:', err);
+        res.status(500).json({ error: 'Failed to fetch API keys' });
+    }
+});
+
+// â”€â”€â”€ PATCH /api/admin/keys/:id â”€â”€â”€
+router.patch('/keys/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { value } = req.body || {};
+        const keyDef = getManagedKeyById(id);
+
+        if (!keyDef) {
+            return res.status(404).json({ error: 'Unknown API key' });
+        }
+
+        await upsertAdminSetting(keyDef.envKey, value, req.user?.id);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Admin update key error:', err);
+        res.status(500).json({ error: 'Failed to update API key' });
+    }
+});
+
+// â”€â”€â”€ POST /api/admin/actions â”€â”€â”€
+router.post('/actions', async (req, res) => {
+    try {
+        const { action, payload } = req.body || {};
+        if (!action || typeof action !== 'string') {
+            return res.status(400).json({ error: 'Action name is required' });
+        }
+        await recordAdminAction(action, payload, req.user?.id);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Admin action error:', err);
+        res.status(500).json({ error: 'Failed to record admin action' });
+    }
+});
 
 // ─── GET /api/admin/stats ───
 router.get('/stats', async (req, res) => {

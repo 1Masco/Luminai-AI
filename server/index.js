@@ -17,6 +17,7 @@ import cloudRoutes from './routes/cloud.js';
 import sharingRoutes from './routes/sharing.js';
 import featuresRoutes from './routes/features.js';
 import adminRoutes from './routes/admin.js';
+import { loadAdminSettings } from './services/adminSettings.js';
 
 // Load environment variables
 dotenv.config();
@@ -192,6 +193,10 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
+loadAdminSettings().catch((error) => {
+  logger.warn('Failed to load admin settings on startup', { error: error.message });
+});
+
 app.listen(PORT, () => {
   logger.info(`Luminai-AI server started`, {
     port: PORT,

@@ -1,6 +1,8 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Meeting, Note, UserProfile } from '../types';
+import apiService from '../utils/apiService';
+import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 
 // ─── Types ─────────────────────────────────────────────
 type AdminTab =
@@ -74,12 +76,6 @@ const MOCK_JOBS = [
     { id: 'j2', name: 'Daily Usage Rollup', status: 'scheduled', lastRun: '4 hrs ago', nextRun: 'in 20 hrs' },
     { id: 'j3', name: 'Billing Sync', status: 'failed', lastRun: '20 min ago', nextRun: 'retrying' },
     { id: 'j4', name: 'Archive Exports', status: 'idle', lastRun: '1 day ago', nextRun: 'in 6 hrs' },
-];
-
-const MOCK_API_KEYS = [
-    { id: 'key_live_01', name: 'Core Platform', createdAt: '2025-11-12', lastUsed: '3 min ago', scopes: ['admin', 'billing', 'users'] },
-    { id: 'key_live_02', name: 'Data Pipeline', createdAt: '2025-12-03', lastUsed: '2 hrs ago', scopes: ['events', 'exports'] },
-    { id: 'key_live_03', name: 'Support Console', createdAt: '2026-01-08', lastUsed: '1 day ago', scopes: ['support', 'users'] },
 ];
 
 const MOCK_WEBHOOKS = [
@@ -278,6 +274,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
     });
 
     const [integrations, setIntegrations] = useState(MOCK_INTEGRATIONS);
+    const [adminToken, setAdminToken] = useState<string | null>(null);
+    const [apiKeys, setApiKeys] = useState<any[]>([]);
+    const [apiKeysLoading, setApiKeysLoading] = useState(false);
+    const [apiKeysError, setApiKeysError] = useState<string | null>(null);
+    const [editingKey, setEditingKey] = useState<any | null>(null);
+    const [editingValue, setEditingValue] = useState('');
 
     // Settings state
     const [settings, setSettings] = useState({
@@ -294,9 +296,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
         sessionTimeoutMins: 60,
     });
 
-    const triggerToast = useCallback((msg: string) => {
+    const logAdminAction = useCallback(async (action: string, payload?: any) => {
+        try {
+            await apiService.logAdminAction(adminToken || undefined, action, payload);
+        } catch (error) {
+            // Silent fail - logging should not block UI actions
+        }
+    }, [adminToken]);
+
+    const triggerToast = useCallback((msg: string, payload?: any) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(''), 3000);
+        logAdminAction('admin_ui', { message: msg, ...(payload || {}) });
+    }, [logAdminAction]);
+
+    useEffect(() => {
+        if (!isSupabaseConfigured()) return;
+        const supabase = getSupabaseClient();
+
+        supabase.auth.getSession().then(({ data }) => {
+            setAdminToken(data.session?.access_token || null);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setAdminToken(session?.access_token || null);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     // Computed stats from real data
@@ -316,6 +342,67 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
             activeSessions: 34,
         };
     }, [meetings, notes]);
+
+    const fetchApiKeys = useCallback(async () => {
+        setApiKeysLoading(true);
+        setApiKeysError(null);
+        if (!adminToken && isSupabaseConfigured()) {
+            setApiKeys([]);
+            setApiKeysError('Sign in as an admin to view API keys.');
+            setApiKeysLoading(false);
+            return;
+        }
+        try {
+            const response = await apiService.getAdminApiKeys(adminToken || undefined);
+            setApiKeys(response?.keys || []);
+        } catch (error: any) {
+            setApiKeysError(error?.message || 'Failed to load API keys');
+        } finally {
+            setApiKeysLoading(false);
+        }
+    }, [adminToken]);
+
+    const updateApiKey = useCallback(async (keyId: string, value: string) => {
+        setApiKeysError(null);
+        if (!adminToken && isSupabaseConfigured()) {
+            setApiKeysError('Sign in as an admin to update API keys.');
+            return;
+        }
+        try {
+            await apiService.updateAdminApiKey(adminToken || undefined, keyId, value);
+            await fetchApiKeys();
+            triggerToast('API key updated', { keyId });
+        } catch (error: any) {
+            setApiKeysError(error?.message || 'Failed to update API key');
+        }
+    }, [adminToken, fetchApiKeys, triggerToast]);
+
+    const openApiKeyEditor = (key: any) => {
+        setEditingKey(key);
+        setEditingValue('');
+    };
+
+    const closeApiKeyEditor = () => {
+        setEditingKey(null);
+        setEditingValue('');
+    };
+
+    const handleSaveApiKey = async () => {
+        if (!editingKey) return;
+        const trimmed = editingValue.trim();
+        if (!trimmed) {
+            setApiKeysError('Enter a key value before saving.');
+            return;
+        }
+        await updateApiKey(editingKey.id, trimmed);
+        closeApiKeyEditor();
+    };
+
+    useEffect(() => {
+        if (activeTab === 'security') {
+            fetchApiKeys();
+        }
+    }, [activeTab, fetchApiKeys]);
 
     // Filtered users
     const filteredUsers = useMemo(() => {
@@ -824,13 +911,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
 
     const renderSecurity = () => {
         const adminCount = MOCK_USERS.filter(u => u.role === 'admin' || u.role === 'owner').length;
+        const activeApiKeyCount = apiKeys.filter((key) => key?.isSet).length;
         return (
             <div className="space-y-6 animate-fade-in">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard icon="fa-shield-halved" label="Admin Accounts" value={adminCount} gradient="linear-gradient(135deg, #10b981, #059669)" />
                     <StatCard icon="fa-lock" label="MFA Coverage" value="68%" trend="+6%" trendUp gradient="linear-gradient(135deg, #6366f1, #4f46e5)" />
                     <StatCard icon="fa-triangle-exclamation" label="Failed Logins (24h)" value="14" trend="-3%" gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
-                    <StatCard icon="fa-key" label="Active API Keys" value={MOCK_API_KEYS.length} gradient="linear-gradient(135deg, #0ea5e9, #2563eb)" />
+                    <StatCard icon="fa-key" label="Active API Keys" value={activeApiKeyCount} gradient="linear-gradient(135deg, #0ea5e9, #2563eb)" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -916,43 +1004,84 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                 </div>
 
                 <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}>
-                    <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>API Keys</h3>
+                    <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                        <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>API Keys</h3>
+                            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Manage provider keys without changing code</p>
+                        </div>
                         <button
-                            onClick={() => triggerToast('Created new API key')}
+                            onClick={fetchApiKeys}
                             className="text-xs font-semibold px-3 py-1.5 rounded-lg"
                             style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
                         >
-                            New Key
+                            Refresh
                         </button>
                     </div>
+                    {apiKeysError && (
+                        <div className="px-5 py-2 text-xs" style={{ color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)' }}>
+                            {apiKeysError}
+                        </div>
+                    )}
                     <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
-                        {MOCK_API_KEYS.map(key => (
-                            <div key={key.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 items-center">
-                                <div className="col-span-4">
-                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{key.name}</p>
-                                    <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{key.id}</p>
-                                </div>
-                                <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{key.scopes.join(', ')}</div>
-                                <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>Last used {key.lastUsed}</div>
-                                <div className="col-span-2 flex justify-end gap-2">
-                                    <button
-                                        onClick={() => triggerToast(`Rotated ${key.name}`)}
-                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
-                                        style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
-                                    >
-                                        Rotate
-                                    </button>
-                                    <button
-                                        onClick={() => triggerToast(`Revoked ${key.name}`)}
-                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
-                                        style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
-                                    >
-                                        Revoke
-                                    </button>
-                                </div>
+                        {apiKeysLoading ? (
+                            <div className="px-5 py-8 text-sm text-center" style={{ color: 'var(--text-tertiary)' }}>
+                                Loading API keys...
                             </div>
-                        ))}
+                        ) : apiKeys.length === 0 ? (
+                            <div className="px-5 py-8 text-sm text-center" style={{ color: 'var(--text-tertiary)' }}>
+                                No managed keys found.
+                            </div>
+                        ) : (
+                            apiKeys.map(key => (
+                                <div key={key.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-5 py-4 items-center">
+                                    <div className="col-span-4">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{key.label || key.envKey}</p>
+                                            <StatusPill status={key.isSet ? 'active' : 'paused'} />
+                                        </div>
+                                        <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{key.envKey}</p>
+                                        <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{key.description || ''}</p>
+                                    </div>
+                                    <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>Scopes</div>
+                                        <div>{key.scopes?.join(', ') || 'None'}</div>
+                                        <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                            Masked: <span style={{ color: 'var(--text-secondary)' }}>{key.masked || 'Not set'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="col-span-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                            Source: <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{key.source || 'unset'}</span>
+                                        </div>
+                                        <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                            Updated: <span style={{ color: 'var(--text-secondary)' }}>{key.updatedAt ? formatDate(key.updatedAt) : 'Never'}</span>
+                                        </div>
+                                        {key.updatedBy && (
+                                            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                                By: <span style={{ color: 'var(--text-secondary)' }}>{key.updatedBy}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="col-span-2 flex justify-end gap-2">
+                                        <button
+                                            onClick={() => openApiKeyEditor(key)}
+                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold"
+                                            style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                        >
+                                            Update
+                                        </button>
+                                        <button
+                                            onClick={() => updateApiKey(key.id, '')}
+                                            disabled={!key.isSet}
+                                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                            style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                                        >
+                                            Disable
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
@@ -1496,6 +1625,59 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
             {activeTab === 'integrations' && renderIntegrations()}
             {activeTab === 'settings' && renderSettings()}
             {activeTab === 'activity' && renderActivity()}
+
+            {/* API Key Update Modal */}
+            {editingKey && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'var(--overlay-bg)' }}>
+                    <div
+                        className="w-full max-w-md rounded-2xl p-6 shadow-2xl animate-scale-in"
+                        style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                                <i className="fas fa-key"></i>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Update API Key</h3>
+                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{editingKey.label || editingKey.envKey}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3 mb-5">
+                            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                Current: <span style={{ color: 'var(--text-secondary)' }}>{editingKey.masked || 'Not set'}</span>
+                            </div>
+                            <input
+                                type="password"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                placeholder="Paste new key value"
+                                className="w-full text-sm font-semibold px-4 py-3 rounded-xl"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                Saving a value overrides the runtime key. Use Disable to clear the override.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={closeApiKeyEditor}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveApiKey}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}
+                                disabled={!editingValue.trim()}
+                            >
+                                Save Key
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             {confirmDelete && (

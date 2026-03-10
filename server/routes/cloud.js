@@ -4,6 +4,7 @@ import { CloudDownloadInputSchema } from '../validation/schemas.js';
 import { asyncHandler } from '../errors/errorHandler.js';
 import { AppError, AppErrors } from '../errors/AppError.js';
 import logger from '../logger/winston.config.js';
+import { getRuntimeValue } from '../services/adminSettings.js';
 
 const router = express.Router();
 
@@ -43,7 +44,7 @@ router.post(
       }
 
       if (fileId) {
-        const apiKey = process.env.GOOGLE_API_KEY;
+        const apiKey = getRuntimeValue('GOOGLE_API_KEY');
         if (apiKey) {
           downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
         } else {

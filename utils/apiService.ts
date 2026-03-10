@@ -128,6 +128,69 @@ class APIService {
         }
     }
 
+    // =============================================
+    // ADMIN
+    // =============================================
+
+    /**
+     * Fetch managed API keys for admin dashboard
+     */
+    async getAdminApiKeys(token?: string) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${this.baseURL}/api/admin/keys`, {
+            method: 'GET',
+            headers,
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to fetch API keys'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Update a managed API key (admin override)
+     */
+    async updateAdminApiKey(token: string | undefined, id: string, value: string) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${this.baseURL}/api/admin/keys/${id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ value }),
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to update API key'));
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Record an admin action for audit trail
+     */
+    async logAdminAction(token: string | undefined, action: string, payload?: any) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${this.baseURL}/api/admin/actions`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ action, payload: payload || null }),
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to record admin action'));
+        }
+
+        return response.json();
+    }
+
     /**
      * Initiate Google Calendar OAuth flow
      */
