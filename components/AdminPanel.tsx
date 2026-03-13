@@ -280,6 +280,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
     const [apiKeysError, setApiKeysError] = useState<string | null>(null);
     const [editingKey, setEditingKey] = useState<any | null>(null);
     const [editingValue, setEditingValue] = useState('');
+    const [showAddKeyModal, setShowAddKeyModal] = useState(false);
+    const [newKeyEnv, setNewKeyEnv] = useState('');
+    const [newKeyLabel, setNewKeyLabel] = useState('');
+    const [newKeyDescription, setNewKeyDescription] = useState('');
+    const [newKeyScopes, setNewKeyScopes] = useState('');
+    const [createKeyLoading, setCreateKeyLoading] = useState(false);
 
     // Settings state
     const [settings, setSettings] = useState({
@@ -376,6 +382,58 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
             setApiKeysError(error?.message || 'Failed to update API key');
         }
     }, [adminToken, fetchApiKeys, triggerToast]);
+
+    const parseScopes = useCallback((raw: string) => raw
+        .split(',')
+        .map(scope => scope.trim())
+        .filter(Boolean), []);
+
+    const openAddKeyModal = () => {
+        setNewKeyEnv('');
+        setNewKeyLabel('');
+        setNewKeyDescription('');
+        setNewKeyScopes('');
+        setApiKeysError(null);
+        setShowAddKeyModal(true);
+    };
+
+    const closeAddKeyModal = () => {
+        setShowAddKeyModal(false);
+    };
+
+    const createApiKeyDefinition = useCallback(async () => {
+        const envKey = newKeyEnv.trim().toUpperCase();
+        if (!envKey) {
+            setApiKeysError('Provide an ENV key (e.g. MY_PROVIDER_API_KEY).');
+            return;
+        }
+        if (!/^[A-Z][A-Z0-9_]*$/.test(envKey)) {
+            setApiKeysError('ENV key must be uppercase letters, numbers, and underscores only.');
+            return;
+        }
+        if (!adminToken && isSupabaseConfigured()) {
+            setApiKeysError('Sign in as an admin to add API keys.');
+            return;
+        }
+
+        setCreateKeyLoading(true);
+        setApiKeysError(null);
+        try {
+            await apiService.createAdminApiKey(adminToken || undefined, {
+                envKey,
+                label: newKeyLabel.trim() || envKey,
+                description: newKeyDescription.trim(),
+                scopes: parseScopes(newKeyScopes),
+            });
+            triggerToast('API key definition added', { envKey });
+            closeAddKeyModal();
+            await fetchApiKeys();
+        } catch (error: any) {
+            setApiKeysError(error?.message || 'Failed to add API key definition');
+        } finally {
+            setCreateKeyLoading(false);
+        }
+    }, [adminToken, newKeyEnv, newKeyLabel, newKeyDescription, newKeyScopes, fetchApiKeys, triggerToast, parseScopes]);
 
     const openApiKeyEditor = (key: any) => {
         setEditingKey(key);
@@ -1009,13 +1067,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
                             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>API Keys</h3>
                             <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Manage provider keys without changing code</p>
                         </div>
-                        <button
-                            onClick={fetchApiKeys}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg"
-                            style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
-                        >
-                            Refresh
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={openAddKeyModal}
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                                style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                            >
+                                Add API Key
+                            </button>
+                            <button
+                                onClick={fetchApiKeys}
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                                style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)' }}
+                            >
+                                Refresh
+                            </button>
+                        </div>
                     </div>
                     {apiKeysError && (
                         <div className="px-5 py-2 text-xs" style={{ color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)' }}>
@@ -1625,6 +1692,80 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ meetings, notes, user, onDelete
             {activeTab === 'integrations' && renderIntegrations()}
             {activeTab === 'settings' && renderSettings()}
             {activeTab === 'activity' && renderActivity()}
+
+            {/* Add API Key Modal */}
+            {showAddKeyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'var(--overlay-bg)' }}>
+                    <div
+                        className="w-full max-w-md rounded-2xl p-6 shadow-2xl animate-scale-in"
+                        style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                                <i className="fas fa-plus"></i>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Add API Key</h3>
+                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Register a new provider key</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3 mb-5">
+                            <input
+                                type="text"
+                                value={newKeyEnv}
+                                onChange={(e) => setNewKeyEnv(e.target.value.toUpperCase())}
+                                placeholder="ENV Key (e.g. NEW_PROVIDER_API_KEY)"
+                                className="w-full text-sm font-semibold px-4 py-3 rounded-xl"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <input
+                                type="text"
+                                value={newKeyLabel}
+                                onChange={(e) => setNewKeyLabel(e.target.value)}
+                                placeholder="Label (e.g. New Provider API Key)"
+                                className="w-full text-sm font-semibold px-4 py-3 rounded-xl"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <input
+                                type="text"
+                                value={newKeyDescription}
+                                onChange={(e) => setNewKeyDescription(e.target.value)}
+                                placeholder="Description"
+                                className="w-full text-sm font-semibold px-4 py-3 rounded-xl"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <input
+                                type="text"
+                                value={newKeyScopes}
+                                onChange={(e) => setNewKeyScopes(e.target.value)}
+                                placeholder="Scopes (comma-separated)"
+                                className="w-full text-sm font-semibold px-4 py-3 rounded-xl"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                            />
+                            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                                Example env key: <span style={{ color: 'var(--text-secondary)' }}>MY_PROVIDER_API_KEY</span>
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={closeAddKeyModal}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={createApiKeyDefinition}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}
+                                disabled={createKeyLoading}
+                            >
+                                {createKeyLoading ? 'Saving...' : 'Add Key'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* API Key Update Modal */}
             {editingKey && (

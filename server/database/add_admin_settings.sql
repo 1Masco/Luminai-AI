@@ -18,3 +18,13 @@ CREATE TABLE IF NOT EXISTS admin_actions (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   actor_id UUID
 );
+
+-- Stores custom API key definitions for the admin dashboard
+CREATE TABLE IF NOT EXISTS admin_key_definitions (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  description TEXT,
+  scopes TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID
+);

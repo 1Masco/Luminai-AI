@@ -34,13 +34,42 @@ const MANAGED_API_KEYS = [
 
 let overrides = {};
 let overrideMeta = {};
+let customDefinitions = [];
 let lastLoadedAt = 0;
 const CACHE_TTL_MS = 30000;
+const CUSTOM_KEYS_TABLE = 'admin_key_definitions';
 
 const sanitizeValue = (value) => (typeof value === 'string' ? value.trim() : '');
+const normalizeEnvKey = (value) => sanitizeValue(value).toUpperCase();
+const isValidEnvKey = (value) => /^[A-Z][A-Z0-9_]*$/.test(value);
 
-export const getManagedKeyById = (id) => MANAGED_API_KEYS.find((key) => key.id === id);
-export const getManagedKeys = () => MANAGED_API_KEYS;
+const mapCustomRow = (row) => ({
+    id: row.id,
+    envKey: row.id,
+    label: row.label || row.id,
+    description: row.description || '',
+    scopes: Array.isArray(row.scopes) ? row.scopes : [],
+    createdAt: row.created_at || null,
+    createdBy: row.created_by || null,
+});
+
+const getCombinedDefinitions = () => {
+    const combined = [...MANAGED_API_KEYS];
+    customDefinitions.forEach((item) => {
+        if (!combined.find((key) => key.id === item.id || key.envKey === item.envKey)) {
+            combined.push(item);
+        }
+    });
+    return combined;
+};
+
+export const getManagedKeyById = (id) => {
+    const keyId = sanitizeValue(id);
+    if (!keyId) return undefined;
+    return getCombinedDefinitions().find((key) => key.id === keyId || key.envKey === keyId);
+};
+
+export const getManagedKeys = () => getCombinedDefinitions();
 
 export const maskSecret = (value) => {
     const raw = sanitizeValue(value);
@@ -53,28 +82,35 @@ export const loadAdminSettings = async (force = false) => {
     if (!isSupabaseConfigured()) return;
     if (!force && Date.now() - lastLoadedAt < CACHE_TTL_MS) return;
 
-    const { data, error } = await supabase
-        .from('admin_settings')
-        .select('key, value, updated_at, updated_by');
+    const [settingsRes, customRes] = await Promise.all([
+        supabase.from('admin_settings').select('key, value, updated_at, updated_by'),
+        supabase.from(CUSTOM_KEYS_TABLE).select('id, label, description, scopes, created_at, created_by'),
+    ]);
 
-    if (error) {
-        logger.warn('Failed to load admin settings', { error: error.message });
-        return;
+    if (settingsRes.error) {
+        logger.warn('Failed to load admin settings', { error: settingsRes.error.message });
+    } else {
+        const nextOverrides = {};
+        const nextMeta = {};
+
+        (settingsRes.data || []).forEach((row) => {
+            nextOverrides[row.key] = row.value;
+            nextMeta[row.key] = {
+                updatedAt: row.updated_at,
+                updatedBy: row.updated_by,
+            };
+        });
+
+        overrides = nextOverrides;
+        overrideMeta = nextMeta;
     }
 
-    const nextOverrides = {};
-    const nextMeta = {};
+    if (customRes.error) {
+        logger.warn('Failed to load admin key definitions', { error: customRes.error.message });
+    } else {
+        customDefinitions = (customRes.data || []).map(mapCustomRow);
+    }
 
-    (data || []).forEach((row) => {
-        nextOverrides[row.key] = row.value;
-        nextMeta[row.key] = {
-            updatedAt: row.updated_at,
-            updatedBy: row.updated_by,
-        };
-    });
-
-    overrides = nextOverrides;
-    overrideMeta = nextMeta;
     lastLoadedAt = Date.now();
 };
 
@@ -82,7 +118,7 @@ export const getRuntimeValue = (envKey) => overrides[envKey] ?? process.env[envK
 
 export const listManagedKeys = async () => {
     await loadAdminSettings();
-    return MANAGED_API_KEYS.map((key) => {
+    return getCombinedDefinitions().map((key) => {
         const value = getRuntimeValue(key.envKey);
         const meta = overrideMeta[key.envKey];
         const fromOverride = Boolean(overrides[key.envKey]);
@@ -99,6 +135,47 @@ export const listManagedKeys = async () => {
             updatedBy: meta?.updatedBy || null,
         };
     });
+};
+
+export const createManagedKeyDefinition = async (payload, createdBy) => {
+    const envKey = normalizeEnvKey(payload?.envKey || payload?.id || '');
+    if (!envKey) {
+        throw new Error('envKey is required');
+    }
+    if (!isValidEnvKey(envKey)) {
+        throw new Error('envKey must be uppercase letters, numbers, and underscores only');
+    }
+    if (getManagedKeyById(envKey) || MANAGED_API_KEYS.some((key) => key.envKey === envKey)) {
+        throw new Error('A key with this envKey already exists');
+    }
+
+    const definition = {
+        id: envKey,
+        label: sanitizeValue(payload?.label) || envKey,
+        description: sanitizeValue(payload?.description) || '',
+        scopes: Array.isArray(payload?.scopes)
+            ? payload.scopes.map((scope) => sanitizeValue(scope)).filter(Boolean)
+            : [],
+        created_at: new Date().toISOString(),
+        created_by: createdBy || null,
+    };
+
+    if (!isSupabaseConfigured()) {
+        customDefinitions = [...customDefinitions, mapCustomRow(definition)];
+        return mapCustomRow(definition);
+    }
+
+    const { data, error } = await supabase
+        .from(CUSTOM_KEYS_TABLE)
+        .insert(definition)
+        .select('id, label, description, scopes, created_at, created_by')
+        .single();
+
+    if (error) throw error;
+
+    const created = mapCustomRow(data);
+    customDefinitions = [...customDefinitions, created];
+    return created;
 };
 
 export const upsertAdminSetting = async (envKey, value, updatedBy) => {
@@ -168,4 +245,3 @@ export const recordAdminAction = async (action, payload, actorId) => {
         logger.warn('Failed to record admin action', { action, error: error.message });
     }
 };
-

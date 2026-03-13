@@ -152,6 +152,26 @@ class APIService {
     }
 
     /**
+     * Create a managed API key definition
+     */
+    async createAdminApiKey(token: string | undefined, payload: { envKey: string; label?: string; description?: string; scopes?: string[] }) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${this.baseURL}/api/admin/keys`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error(await this.getErrorMessage(response, 'Failed to create API key definition'));
+        }
+
+        return response.json();
+    }
+
+    /**
      * Update a managed API key (admin override)
      */
     async updateAdminApiKey(token: string | undefined, id: string, value: string) {

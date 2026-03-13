@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import requireAdmin from '../middleware/admin.js';
 import {
     listManagedKeys,
-    getManagedKeyById,
+    createManagedKeyDefinition,
     upsertAdminSetting,
     recordAdminAction,
 } from '../services/adminSettings.js';
@@ -33,12 +33,32 @@ router.get('/keys', async (req, res) => {
     }
 });
 
+router.post('/keys', async (req, res) => {
+    try {
+        const { envKey, label, description, scopes } = req.body || {};
+        if (!envKey) {
+            return res.status(400).json({ error: 'envKey is required' });
+        }
+
+        const created = await createManagedKeyDefinition(
+            { envKey, label, description, scopes },
+            req.user?.id
+        );
+
+        res.status(201).json({ key: created });
+    } catch (err) {
+        console.error('Admin create key error:', err);
+        res.status(400).json({ error: err.message || 'Failed to create API key definition' });
+    }
+});
+
 // â”€â”€â”€ PATCH /api/admin/keys/:id â”€â”€â”€
 router.patch('/keys/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { value } = req.body || {};
-        const keyDef = getManagedKeyById(id);
+        const keys = await listManagedKeys();
+        const keyDef = keys.find((key) => key.id === id || key.envKey === id);
 
         if (!keyDef) {
             return res.status(404).json({ error: 'Unknown API key' });
