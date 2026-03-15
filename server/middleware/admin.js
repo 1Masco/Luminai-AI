@@ -5,7 +5,7 @@ import logger from '../logger/winston.config.js';
 export const requireAdmin = async (req, res, next) => {
     try {
         if (!isSupabaseConfigured()) {
-            return next();
+            throw new AppError('Authentication service unavailable', 503, 'AUTH_SERVICE_UNAVAILABLE');
         }
 
         const authHeader = req.headers.authorization;

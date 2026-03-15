@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 
@@ -9,12 +9,27 @@ interface AuthViewProps {
   onToggleTheme: () => void;
 }
 
-type AuthMode = 'login' | 'signup' | 'phone' | 'otp_verify';
+type AuthMode = 'login' | 'signup' | 'phone' | 'otp_verify' | 'forgot_password' | 'reset_password';
+
+const getPasswordStrength = (pw: string): { score: number; label: string; color: string } => {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
+  if (score <= 4) return { score, label: 'Medium', color: 'bg-yellow-500' };
+  return { score, label: 'Strong', color: 'bg-emerald-500' };
+};
 
 const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -25,6 +40,129 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
   const [message, setMessage] = useState<string | null>(null);
   const isAdminMode = authContext === 'admin';
   const adminAccessCode = import.meta.env.VITE_ADMIN_ACCESS_CODE;
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+  const showPasswordStrength = (mode === 'signup' || mode === 'reset_password') && password.length > 0;
+
+  // Detect password recovery redirect from Supabase (URL contains type=recovery)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setMode('reset_password');
+      setError(null);
+      setMessage('Enter your new password below.');
+    }
+  }, []);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (!email) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      setError('Password reset requires Supabase to be configured.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/#type=recovery`
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('Check your email for a password reset link. It may take a minute to arrive.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (passwordStrength.score <= 2) {
+      setError('Please choose a stronger password. Include uppercase, lowercase, numbers, and special characters.');
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      setError('Password reset requires Supabase to be configured.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.updateUser({ password });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('Password updated successfully! You can now sign in with your new password.');
+        setMode('login');
+        setPassword('');
+        setConfirmPassword('');
+        // Clean up the recovery hash from the URL
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      setError('Email verification requires Supabase to be configured.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('Verification email resent. Check your inbox.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend verification email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setError(null);
@@ -120,6 +258,18 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
     try {
       const supabase = getSupabaseClient();
       if (mode === 'signup') {
+        if (password.length < 8) {
+          setError('Password must be at least 8 characters.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (passwordStrength.score <= 2) {
+          setError('Please choose a stronger password. Include uppercase, lowercase, numbers, and special characters.');
+          setIsLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -144,6 +294,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
 
         if (error) {
           setError(error.message);
+          return;
+        }
+
+        // Enforce email verification
+        if (data.user && !data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          setError('Please verify your email before logging in.');
+          setMessage(null);
           return;
         }
 
@@ -241,10 +399,25 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    if (mode === 'phone' || mode === 'otp_verify') {
+    if (mode === 'forgot_password') {
+      handleForgotPassword(e);
+    } else if (mode === 'reset_password') {
+      handleResetPassword(e);
+    } else if (mode === 'phone' || mode === 'otp_verify') {
       handlePhoneAuth(e);
     } else {
       handleEmailAuth(e);
+    }
+  };
+
+  const getSubmitLabel = () => {
+    switch (mode) {
+      case 'login': return isAdminMode ? 'Admin Sign In' : 'Sign In';
+      case 'signup': return 'Create Account';
+      case 'phone': return 'Send Code';
+      case 'otp_verify': return 'Verify Code';
+      case 'forgot_password': return 'Send Reset Link';
+      case 'reset_password': return 'Update Password';
     }
   };
 
@@ -294,7 +467,19 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
               <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                 <i className="fas fa-exclamation text-[8px]"></i>
               </div>
-              <span className="font-medium">{error}</span>
+              <div>
+                <span className="font-medium">{error}</span>
+                {error.includes('verify your email') && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={isLoading}
+                    className="block text-xs text-brand-600 font-bold mt-1.5 hover:underline disabled:opacity-50"
+                  >
+                    Resend verification email
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -308,35 +493,38 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
             </div>
           )}
 
-          <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthContext('user');
-                setMode('login');
-                setAdminCode('');
-                setError(null);
-                setMessage(null);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${!isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
-            >
-              User
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthContext('admin');
-                setMode('login');
-                setError(null);
-                setMessage(null);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
-            >
-              Admin
-            </button>
-          </div>
+          {/* User/Admin context switcher - hide on forgot/reset password */}
+          {mode !== 'forgot_password' && mode !== 'reset_password' && (
+            <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthContext('user');
+                  setMode('login');
+                  setAdminCode('');
+                  setError(null);
+                  setMessage(null);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${!isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                User
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthContext('admin');
+                  setMode('login');
+                  setError(null);
+                  setMessage(null);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${isAdminMode ? 'bg-white shadow-sm text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Admin
+              </button>
+            </div>
+          )}
 
-          {mode !== 'otp_verify' && !isAdminMode && (
+          {mode !== 'otp_verify' && mode !== 'forgot_password' && mode !== 'reset_password' && !isAdminMode && (
             <>
               {/* Tab Switcher */}
               <div className="flex bg-gray-100/60 p-1 rounded-2xl mb-7">
@@ -382,12 +570,34 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
             </>
           )}
 
-          {mode !== 'otp_verify' && isAdminMode && (
+          {mode !== 'otp_verify' && mode !== 'forgot_password' && mode !== 'reset_password' && isAdminMode && (
             <div className="mb-6 p-3.5 bg-blue-50/70 backdrop-blur border border-blue-100 rounded-2xl text-sm text-blue-700 flex items-start gap-2.5 animate-slide-down">
               <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                 <i className="fas fa-shield-halved text-[8px]"></i>
               </div>
               <span className="font-medium">Admin access only. Use your admin credentials to continue.</span>
+            </div>
+          )}
+
+          {/* Forgot Password Header */}
+          {mode === 'forgot_password' && (
+            <div className="mb-6 text-center">
+              <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i className="fas fa-key text-brand-600"></i>
+              </div>
+              <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Reset Password</h2>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Enter your email and we'll send you a reset link.</p>
+            </div>
+          )}
+
+          {/* Reset Password Header */}
+          {mode === 'reset_password' && (
+            <div className="mb-6 text-center">
+              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i className="fas fa-lock text-emerald-600"></i>
+              </div>
+              <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>New Password</h2>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose a strong password for your account.</p>
             </div>
           )}
 
@@ -424,7 +634,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
                   onClick={() => { setMode('login'); setOtpCode(''); setError(null); setMessage(null); }}
                   className="text-xs text-brand-600 font-bold mt-3 hover:underline"
                 >
-                  ← Back to login
+                  &larr; Back to login
                 </button>
               </div>
             ) : mode === 'phone' ? (
@@ -443,9 +653,75 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
                   onClick={() => { setMode('login'); setError(null); setMessage(null); }}
                   className="text-xs text-brand-600 font-bold mt-3 hover:underline"
                 >
-                  ← Back to email login
+                  &larr; Back to email login
                 </button>
               </div>
+            ) : mode === 'forgot_password' ? (
+              <>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); setError(null); setMessage(null); }}
+                  className="text-xs text-brand-600 font-bold hover:underline"
+                >
+                  &larr; Back to login
+                </button>
+              </>
+            ) : mode === 'reset_password' ? (
+              <>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    minLength={8}
+                    className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
+                  />
+                  {showPasswordStrength && (
+                    <div className="mt-2 px-1">
+                      <div className="flex gap-1 mb-1">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-all ${i <= passwordStrength.score ? passwordStrength.color : 'bg-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-[10px] font-semibold ${passwordStrength.score <= 2 ? 'text-red-500' : passwordStrength.score <= 4 ? 'text-yellow-600' : 'text-emerald-600'}`}>
+                        {passwordStrength.label}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    minLength={8}
+                    className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
+                  />
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-[10px] text-red-500 font-semibold mt-1 px-1">Passwords do not match</p>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 <div>
@@ -469,7 +745,31 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
                     placeholder="••••••••"
                     className="w-full bg-gray-50/80 border border-gray-200/60 rounded-xl py-3 px-4 text-sm placeholder:text-gray-300 focus:bg-white focus:border-brand-300 transition-all"
                   />
+                  {showPasswordStrength && (
+                    <div className="mt-2 px-1">
+                      <div className="flex gap-1 mb-1">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-all ${i <= passwordStrength.score ? passwordStrength.color : 'bg-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-[10px] font-semibold ${passwordStrength.score <= 2 ? 'text-red-500' : passwordStrength.score <= 4 ? 'text-yellow-600' : 'text-emerald-600'}`}>
+                        {passwordStrength.label}
+                      </p>
+                    </div>
+                  )}
                 </div>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('forgot_password'); setError(null); setMessage(null); }}
+                    className="text-xs text-brand-600 font-bold hover:underline -mt-1"
+                  >
+                    Forgot password?
+                  </button>
+                )}
                 {isAdminMode && !isSupabaseConfigured() && (
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1 mb-1.5 block">Admin Access Code</label>
@@ -497,7 +797,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, isDark, onToggleTheme }) =
               className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-2xl font-bold text-sm hover:from-brand-700 hover:to-brand-600 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
             >
               {isLoading && <i className="fas fa-circle-notch fa-spin"></i>}
-              {mode === 'login' ? (isAdminMode ? 'Admin Sign In' : 'Sign In') : mode === 'signup' ? 'Create Account' : mode === 'phone' ? 'Send Code' : 'Verify Code'}
+              {getSubmitLabel()}
             </button>
           </form>
         </div>

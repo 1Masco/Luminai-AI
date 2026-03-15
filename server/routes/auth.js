@@ -1,10 +1,14 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { supabase } from '../config/supabase.js';
 import { validateRequest } from '../validation/middleware.js';
 import {
   SignupInputSchema,
   LoginInputSchema,
   UpdateProfileInputSchema,
+  ForgotPasswordSchema,
+  RefreshTokenSchema,
+  ResendVerificationSchema,
 } from '../validation/schemas.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { asyncHandler } from '../errors/errorHandler.js';
@@ -13,6 +17,25 @@ import logger from '../logger/winston.config.js';
 
 const router = express.Router();
 
+// Auth-specific rate limiters (stricter than global)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: { error: 'Too many authentication attempts. Please try again later.', code: 'RATE_LIMIT_EXCEEDED' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // 3 attempts per window
+  message: { error: 'Too many password reset requests. Please try again later.', code: 'RATE_LIMIT_EXCEEDED' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+});
+
 /**
  * POST /api/auth/signup
  * Create a new user account
@@ -20,6 +43,7 @@ const router = express.Router();
  */
 router.post(
   '/signup',
+  authLimiter,
   validateRequest(SignupInputSchema),
   asyncHandler(async (req, res) => {
     const { email, password, name } = req.body;
@@ -64,6 +88,7 @@ router.post(
  */
 router.post(
   '/login',
+  authLimiter,
   validateRequest(LoginInputSchema),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
@@ -80,12 +105,104 @@ router.post(
       throw AppErrors.INVALID_CREDENTIALS();
     }
 
+    // Enforce email verification
+    if (data.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      logger.warn('Unverified email login attempt', { email, requestId: req.id });
+      throw new AppError('Please verify your email before logging in.', 403, 'AUTH_EMAIL_NOT_VERIFIED');
+    }
+
     logger.info('Login successful', { userId: data.user?.id, email, requestId: req.id });
 
     res.json({
       user: data.user,
       session: data.session,
     });
+  })
+);
+
+/**
+ * POST /api/auth/forgot-password
+ * Send a password reset email
+ * Body: { email }
+ */
+router.post(
+  '/forgot-password',
+  passwordResetLimiter,
+  validateRequest(ForgotPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    logger.info('Password reset request', { email, requestId: req.id });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/#type=recovery`,
+    });
+
+    if (error) {
+      logger.warn('Password reset failed', { email, error: error.message, requestId: req.id });
+      // Don't reveal whether the email exists or not
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+  })
+);
+
+/**
+ * POST /api/auth/refresh
+ * Refresh an expired session token
+ * Body: { refresh_token }
+ */
+router.post(
+  '/refresh',
+  validateRequest(RefreshTokenSchema),
+  asyncHandler(async (req, res) => {
+    const { refresh_token } = req.body;
+
+    logger.debug('Token refresh request', { requestId: req.id });
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+
+    if (error) {
+      logger.warn('Token refresh failed', { error: error.message, requestId: req.id });
+      throw AppErrors.TOKEN_EXPIRED();
+    }
+
+    logger.debug('Token refreshed successfully', { userId: data.user?.id, requestId: req.id });
+
+    res.json({
+      session: data.session,
+      user: data.user,
+    });
+  })
+);
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend the email verification link
+ * Body: { email }
+ */
+router.post(
+  '/resend-verification',
+  passwordResetLimiter,
+  validateRequest(ResendVerificationSchema),
+  asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    logger.info('Resend verification request', { email, requestId: req.id });
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+
+    if (error) {
+      logger.warn('Resend verification failed', { email, error: error.message, requestId: req.id });
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({ message: 'If an account with that email exists, a verification email has been sent.' });
   })
 );
 
@@ -196,4 +313,3 @@ router.put(
 );
 
 export default router;
-

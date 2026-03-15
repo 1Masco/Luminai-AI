@@ -11,6 +11,18 @@ export const LoginInputSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export const RefreshTokenSchema = z.object({
+  refresh_token: z.string().min(1, 'Refresh token is required'),
+});
+
+export const ResendVerificationSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
 export const PhoneOTPSchema = z.object({
   phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
 });

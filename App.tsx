@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [pendingMeetingTitle, setPendingMeetingTitle] = useState<string | undefined>(undefined);
   const [translationMeeting, setTranslationMeeting] = useState<Meeting | null>(null);
   const [isDark, setIsDark] = useState<boolean>(getInitialTheme);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
   const normalizeUserProfile = useCallback((profile: UserProfile): UserProfile => {
     return {
@@ -107,6 +108,10 @@ const App: React.FC = () => {
     // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
+        setSessionExpiredMessage(null);
+        hydrateUser(session.user);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Session token was refreshed successfully - update stored profile
         hydrateUser(session.user);
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
@@ -117,7 +122,23 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Periodically verify that the session is still valid
+    const sessionCheckInterval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session && isAuthenticated) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setCurrentView(AppView.DASHBOARD);
+        localStorage.removeItem('lumina_auth');
+        localStorage.removeItem('lumina_user');
+        setSessionExpiredMessage('Your session has expired. Please sign in again.');
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(sessionCheckInterval);
+    };
   }, []);
 
   // Helper to build UserProfile from Supabase user
@@ -275,7 +296,20 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <AuthView onLogin={handleLogin} isDark={isDark} onToggleTheme={toggleTheme} />;
+    return (
+      <>
+        {sessionExpiredMessage && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2.5 px-4 text-sm font-semibold shadow-lg">
+            <i className="fas fa-clock mr-2"></i>
+            {sessionExpiredMessage}
+            <button onClick={() => setSessionExpiredMessage(null)} className="ml-3 text-white/80 hover:text-white">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        )}
+        <AuthView onLogin={handleLogin} isDark={isDark} onToggleTheme={toggleTheme} />
+      </>
+    );
   }
 
   const selectedMeeting = meetings.find(m => m.id === selectedMeetingId);
