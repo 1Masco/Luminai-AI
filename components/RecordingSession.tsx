@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Meeting, TranscriptPart } from '../types';
 import config from '../utils/config';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface RecordingSessionProps {
   onFinish: (meeting: Meeting) => void;
@@ -11,6 +12,7 @@ interface RecordingSessionProps {
 const API_URL = config.apiUrl;
 
 const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel, meetingTitle }) => {
+  const { settings, getAudioBitrate } = useSettings();
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -116,10 +118,19 @@ const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel,
   const startRecordingSession = async () => {
     try {
       setStatus('Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          noiseSuppression: settings.noiseSuppression,
+          echoCancellation: true,
+          autoGainControl: true,
+        }
+      });
       streamRef.current = stream;
 
-      const recorder = new MediaRecorder(stream);
+      const bitrate = getAudioBitrate();
+      const recorderOptions: MediaRecorderOptions = {};
+      if (bitrate) recorderOptions.audioBitsPerSecond = bitrate;
+      const recorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
       recordingMimeTypeRef.current = recorder.mimeType || 'audio/webm';
@@ -185,6 +196,8 @@ const RecordingSession: React.FC<RecordingSessionProps> = ({ onFinish, onCancel,
           audioData,
           mimeType,
           fileName,
+          enableDiarization: settings.speakerDiarization,
+          detectLanguage: settings.autoDetectLanguage,
         }),
       });
 

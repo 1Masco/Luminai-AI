@@ -19,6 +19,8 @@ import MeetingPrepView from './components/MeetingPrepView';
 import AITemplatesView from './components/AITemplatesView';
 import TranslationView from './components/TranslationView';
 import AdminPanel from './components/AdminPanel';
+import SettingsView from './components/SettingsView';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { getSupabaseClient, isSupabaseConfigured } from './utils/supabaseClient';
 
 const getInitialTheme = (): boolean => {
@@ -295,6 +297,61 @@ const App: React.FC = () => {
     navigateTo(AppView.TRANSLATION);
   };
 
+  // ─── Global keyboard shortcuts ────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+
+      // Ctrl+Shift combos
+      if (e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'r': // Start / Stop Recording
+            e.preventDefault();
+            if (currentView === AppView.RECORDING) {
+              navigateTo(AppView.DASHBOARD);
+            } else {
+              handleStartRecording();
+            }
+            return;
+          case 'd': // Toggle Dark Mode
+            e.preventDefault();
+            toggleTheme();
+            return;
+        }
+      }
+
+      // Ctrl + key combos (no shift)
+      if (!e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'n': // New Note
+            e.preventDefault();
+            navigateTo(AppView.NOTES);
+            return;
+          case 'b': // Toggle Sidebar
+            e.preventDefault();
+            setIsSidebarOpen(prev => !prev);
+            return;
+          case '1': // Go to Dashboard
+            e.preventDefault();
+            navigateTo(AppView.DASHBOARD);
+            return;
+          case '2': // Go to AI Chat
+            e.preventDefault();
+            navigateTo(AppView.AI_CHAT);
+            return;
+          case ',': // Go to Settings
+            e.preventDefault();
+            navigateTo(AppView.SETTINGS);
+            return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [currentView]);
+
   if (!isAuthenticated) {
     return (
       <>
@@ -318,6 +375,7 @@ const App: React.FC = () => {
   const hideMobileNav = [AppView.RECORDING, AppView.PROCESSING, AppView.MEETING_DETAIL].includes(currentView);
 
   return (
+    <SettingsProvider>
     <div className="relative flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
@@ -509,6 +567,10 @@ const App: React.FC = () => {
             )
           )}
 
+          {currentView === AppView.SETTINGS && (
+            <SettingsView user={user!} onUpdateUser={handleUpdateUser} isDark={isDark} onToggleTheme={toggleTheme} />
+          )}
+
           {currentView === AppView.PROFILE && (
             <ProfileView user={user!} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
           )}
@@ -532,6 +594,7 @@ const App: React.FC = () => {
         )}
       </main>
     </div>
+    </SettingsProvider>
   );
 };
 

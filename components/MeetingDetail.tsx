@@ -7,6 +7,7 @@ import { exportSummaryAsPDF, exportTranscriptAsPDF, exportFullReportAsPDF } from
 import config from '../utils/config';
 import MeetingCoach from './MeetingCoach';
 import FollowUpPanel from './FollowUpPanel';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface MeetingDetailProps {
   meeting: Meeting;
@@ -16,6 +17,7 @@ interface MeetingDetailProps {
 }
 
 const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdateMeeting, onTranslate }) => {
+  const { formatDate } = useSettings();
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'chat' | 'coach'>('transcript');
   const [summary, setSummary] = useState<string>(meeting.summary || "");
   const [actionItems, setActionItems] = useState<string[]>(meeting.actionItems || []);
@@ -322,7 +324,7 @@ const MeetingDetail: React.FC<MeetingDetailProps> = ({ meeting, onBack, onUpdate
               )}
             </div>
             <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-              {new Date(meeting.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(meeting.duration)}
+              {formatDate(meeting.date, { includeTime: true })} · {formatTime(meeting.duration)}
             </p>
           </div>
         </div>

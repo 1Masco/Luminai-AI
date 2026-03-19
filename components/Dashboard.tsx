@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Meeting } from '../types';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface DashboardProps {
   meetings: Meeting[];
@@ -45,6 +46,7 @@ interface SearchMatch {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeeting, onDeleteMeeting, onStartRecording, onFileSelect, onOpenCalendar }) => {
+  const { formatDate } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCloudPicker, setShowCloudPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -437,7 +439,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                           </p>
                           <div className="flex items-center gap-3 mt-1.5">
                             <span className="text-[10px] text-gray-400">
-                              {new Date(result.meeting.date).toLocaleDateString()}
+                              {formatDate(result.meeting.date)}
                             </span>
                             <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                             <span className="text-[10px] text-gray-400">
@@ -555,7 +557,7 @@ const Dashboard: React.FC<DashboardProps> = ({ meetings, minutesUsed, onViewMeet
                     style={{ animationDelay: `${index * 50}ms`, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-primary)' }}
                   >
                     <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl flex flex-col items-center justify-center group-hover:from-brand-50 group-hover:to-brand-100 group-hover:text-brand-600 transition-all shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
-                      <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-wide">{new Date(meeting.date).toLocaleString('default', { month: 'short' })}</span>
+                      <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-wide">{formatDate(meeting.date, { short: true })}</span>
                       <span className="text-sm md:text-base font-extrabold -mt-0.5">{new Date(meeting.date).getDate()}</span>
                     </div>
                     <div className="flex-1 min-w-0">

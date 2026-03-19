@@ -44,10 +44,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate }) => {
         onClick={() => onNavigate(AppView.AI_TEMPLATES)}
       />
       <BottomNavItem
-        icon="fa-user"
-        label="Profile"
-        isActive={currentView === AppView.PROFILE}
-        onClick={() => onNavigate(AppView.PROFILE)}
+        icon="fa-gear"
+        label="Settings"
+        isActive={currentView === AppView.SETTINGS}
+        onClick={() => onNavigate(AppView.SETTINGS)}
       />
     </nav>
   );

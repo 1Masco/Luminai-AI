@@ -1,7 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Note, Meeting } from '../types';
 import config from '../utils/config';
+import { useSettings } from '../contexts/SettingsContext';
 
 const API_URL = config.apiUrl;
 
@@ -14,11 +15,14 @@ interface NotesViewProps {
 }
 
 const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDeleteNote, onViewMeeting }) => {
+  const { settings, formatDate } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isMagicWriting, setIsMagicWriting] = useState(false);
   const [activeFolder, setActiveFolder] = useState<string>('all');
   const [showEditorMobile, setShowEditorMobile] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const autoSaveTimerRef = useRef<number | null>(null);
 
   // Unified items list
   const allItems = useMemo(() => {
@@ -71,7 +75,21 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
 
   const updateSelectedNote = (field: keyof Note, value: string) => {
     if (!selectedItem || selectedItem.isRecording) return;
-    onSaveNote({ ...selectedItem, [field]: value });
+    const updatedNote = { ...selectedItem, [field]: value };
+
+    if (settings.autoSave) {
+      // Debounced auto-save
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      setAutoSaveStatus('saving');
+      autoSaveTimerRef.current = window.setTimeout(() => {
+        onSaveNote(updatedNote);
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 1500);
+      }, 500);
+    } else {
+      // Immediate local update but don't persist — user will click Save
+      onSaveNote(updatedNote);
+    }
   };
 
   const handleMagicWrite = async () => {
@@ -162,7 +180,7 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
                   <div className="flex items-center gap-2 mb-1">
                     <i className={`fas ${item.isRecording ? 'fa-microphone text-blue-500' : 'fa-note-sticky text-yellow-500'} text-[10px]`}></i>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      {new Date(item.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      {formatDate(item.date, { short: true })}
                     </span>
                   </div>
                   <h4 className={`text-sm font-bold truncate ${selectedNoteId === item.id ? 'text-blue-600' : 'text-gray-800'}`}>{item.title}</h4>
@@ -197,7 +215,7 @@ const NotesView: React.FC<NotesViewProps> = ({ notes, meetings, onSaveNote, onDe
                        className="text-lg md:text-xl font-bold text-gray-900 focus:outline-none border-b border-transparent focus:border-gray-200 w-full truncate"
                      />
                    )}
-                   <p className="text-[10px] md:text-xs text-gray-400 font-medium">Modified {new Date(selectedItem.date).toLocaleDateString()}</p>
+                   <p className="text-[10px] md:text-xs text-gray-400 font-medium">Modified {formatDate(selectedItem.date)}</p>
                 </div>
               </div>
               <div className="flex gap-1 md:gap-2">
