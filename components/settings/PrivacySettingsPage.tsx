@@ -106,6 +106,17 @@ const PrivacySettingsPage: React.FC<PrivacySettingsPageProps> = ({
         </SettingRow>
 
         <SettingRow
+          title="Online status visibility"
+          description="Control whether teammates can see when you are active in Lumina."
+          icon="fa-signal"
+          iconColor="#22c55e"
+        >
+          <div className="flex items-center justify-end">
+            <Toggle checked={settings.showOnlineStatus} onChange={(value) => updateSetting('showOnlineStatus', value)} />
+          </div>
+        </SettingRow>
+
+        <SettingRow
           title="Processing preference"
           description="Choose whether Lumina should favor standard speed, privacy-first cloud handling, or local processing when available."
           icon="fa-server"
@@ -116,6 +127,17 @@ const PrivacySettingsPage: React.FC<PrivacySettingsPageProps> = ({
             options={PROCESSING_MODE_OPTIONS}
             onChange={(value) => updateSetting('processingMode', value as ProcessingMode)}
           />
+        </SettingRow>
+
+        <SettingRow
+          title="Anonymous product analytics"
+          description="Share aggregate usage data to help improve Lumina reliability and UX."
+          icon="fa-chart-column"
+          iconColor="#a78bfa"
+        >
+          <div className="flex items-center justify-end">
+            <Toggle checked={settings.shareAnalytics} onChange={(value) => updateSetting('shareAnalytics', value)} />
+          </div>
         </SettingRow>
       </SettingsSection>
 

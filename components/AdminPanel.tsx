@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Meeting, Note, UserProfile } from '../types';
 import apiService from '../utils/apiService';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
+import ContrastSwitch from './common/ContrastSwitch';
 
 // ─── Types ─────────────────────────────────────────────
 type AdminTab =
@@ -232,15 +233,7 @@ const StatusPill: React.FC<{ status: string }> = ({ status }) => {
 };
 
 const ToggleSwitch: React.FC<{ enabled: boolean; onToggle: () => void }> = ({ enabled, onToggle }) => (
-    <button
-        onClick={onToggle}
-        className={`relative w-11 h-6 rounded-full transition-all duration-300 ${enabled ? 'bg-brand-500' : ''}`}
-        style={!enabled ? { backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' } : {}}
-    >
-        <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${enabled ? 'left-[22px]' : 'left-0.5'}`}
-        ></div>
-    </button>
+    <ContrastSwitch checked={enabled} onChange={() => onToggle()} size="sm" />
 );
 
 // ─── Main Component ────────────────────────────────────

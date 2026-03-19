@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AITemplate, DEFAULT_TEMPLATE_CATEGORIES } from '../types';
 import apiService from '../utils/apiService';
+import ContrastSwitch from './common/ContrastSwitch';
 
 interface AITemplatesViewProps {
   onApplyTemplate?: (template: AITemplate) => void;
@@ -696,12 +697,7 @@ const AITemplatesView: React.FC<AITemplatesViewProps> = ({ onApplyTemplate }) =>
 
               {/* Share Toggle */}
               <label className="flex items-center gap-3 p-3 bg-purple-50/50 border border-purple-100 rounded-xl cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formIsShared}
-                  onChange={(e) => setFormIsShared(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded border-gray-300"
-                />
+                <ContrastSwitch checked={formIsShared} onChange={setFormIsShared} size="sm" />
                 <div>
                   <span className="text-sm font-medium text-gray-700">Share with team</span>
                   <p className="text-[11px] text-gray-500">Allow team members to use this template</p>

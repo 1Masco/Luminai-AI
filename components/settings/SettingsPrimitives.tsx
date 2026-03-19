@@ -1,4 +1,5 @@
 import React from 'react';
+import ContrastSwitch from '../common/ContrastSwitch';
 
 type ScopeTone = 'personal' | 'workspace' | 'policy' | 'highlight';
 
@@ -89,22 +90,7 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (value: boolean) => 
   checked,
   onChange,
   id,
-}) => (
-  <button
-    id={id}
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className="relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-    style={{ backgroundColor: checked ? '#4f46e5' : 'var(--border-secondary)' }}
-  >
-    <span
-      className="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
-      style={{ transform: checked ? 'translateX(26px)' : 'translateX(3px)' }}
-    />
-  </button>
-);
+}) => <ContrastSwitch id={id} checked={checked} onChange={onChange} />;
 
 export const SelectControl: React.FC<{
   value: string;

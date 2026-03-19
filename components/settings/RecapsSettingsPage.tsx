@@ -31,6 +31,27 @@ const RecapsSettingsPage: React.FC<RecapsSettingsPageProps> = ({ settings, updat
     updateSetting('recapDeliveryChannels', nextChannels);
   };
 
+  const handleDesktopNotifications = async (nextValue: boolean) => {
+    if (!nextValue) {
+      updateSetting('desktopNotifications', false);
+      return;
+    }
+
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+      updateSetting('desktopNotifications', true);
+      return;
+    }
+
+    if (Notification.permission === 'denied') return;
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      updateSetting('desktopNotifications', true);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <HighlightCard
@@ -224,6 +245,17 @@ const RecapsSettingsPage: React.FC<RecapsSettingsPageProps> = ({ settings, updat
         >
           <div className="flex items-center justify-end">
             <Toggle checked={settings.failureAlerts} onChange={(value) => updateSetting('failureAlerts', value)} />
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          title="Desktop notifications"
+          description="Use browser notifications for ready recaps and important meeting alerts."
+          icon="fa-desktop"
+          iconColor="#22c55e"
+        >
+          <div className="flex items-center justify-end">
+            <Toggle checked={settings.desktopNotifications} onChange={handleDesktopNotifications} />
           </div>
         </SettingRow>
       </SettingsSection>

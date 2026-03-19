@@ -2,6 +2,7 @@
 import { CalendarEvent } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from '../utils/supabaseClient';
 import apiService from '../utils/apiService';
+import ContrastSwitch from './common/ContrastSwitch';
 
 interface CalendarSyncProps {
   onBack: () => void;
@@ -414,12 +415,11 @@ const CalendarSync: React.FC<CalendarSyncProps> = ({ onBack, onJoinAndRecord }) 
                             <span className={`text-[10px] font-bold uppercase tracking-tight ${event.autoJoin ? 'text-green-600' : 'text-gray-400'}`}>
                               {event.autoJoin ? 'Auto-Record ON' : 'Auto-Record OFF'}
                             </span>
-                            <button
-                              onClick={() => toggleAutoJoin(event.id)}
-                              className={`w-14 h-7 rounded-full relative transition-colors ${event.autoJoin ? 'bg-blue-600' : 'bg-gray-200'}`}
-                            >
-                              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${event.autoJoin ? 'right-1' : 'left-1'}`}></div>
-                            </button>
+                            <ContrastSwitch
+                              checked={event.autoJoin}
+                              onChange={() => toggleAutoJoin(event.id)}
+                              size="sm"
+                            />
                           </div>
                         </div>
                       </div>

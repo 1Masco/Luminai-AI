@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import ContrastSwitch from './common/ContrastSwitch';
 
 interface ProfileViewProps {
   user: UserProfile;
@@ -352,13 +353,12 @@ const AppCard: React.FC<{ name: string, icon: string, color: string, isConnected
       <h4 className="font-bold text-xs md:text-sm" style={{ color: 'var(--text-primary)' }}>{name}</h4>
       <p className="text-[9px] md:text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>{isConnected ? 'Syncing active' : 'Not connected'}</p>
     </div>
-    <button
-      onClick={onToggle}
-      className={`px-3 py-1.5 md:px-4 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-tight transition-colors ${isConnected ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-blue-600 text-white hover:bg-blue-700'
-        }`}
-    >
-      {isConnected ? 'Off' : 'On'}
-    </button>
+    <div className="flex flex-col items-end gap-1.5">
+      <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-tight" style={{ color: isConnected ? '#16a34a' : 'var(--text-tertiary)' }}>
+        {isConnected ? 'Connected' : 'Disconnected'}
+      </span>
+      <ContrastSwitch checked={isConnected} onChange={() => onToggle()} size="sm" />
+    </div>
   </div>
 );
 
